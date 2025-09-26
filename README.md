@@ -6,7 +6,7 @@ Data Coordinating Center Childhood Cancer Data Initiative Federation API develop
 - **Docs**: `/openapi.json` and Swagger UI are **served directly from `app/openapi/swagger.yaml`**, so all search URL query parameters and enum values appear as in the spec.
 - **Routers**: live in `app/routers/` and accept **all query params optionally** via `request.query_params`; strict filtering logic is implemented server-side.
 - Includes experimental endpoints: `/subject-diagnosis`, `/sample-diagnosis`.
-- REsponses Data in JSON is taken from `app/data/`.
+- Responses Data in JSON is taken from `app/data/`.
 
 ## Run
 ```bash
