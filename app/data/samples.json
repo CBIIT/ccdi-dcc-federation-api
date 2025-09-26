@@ -1,0 +1,63 @@
+[
+  {
+    "id": {
+      "namespace": {
+        "organization": "example-org",
+        "name": "ExampleNS"
+      },
+      "name": "SampleName001"
+    },
+    "subject": {
+      "namespace": {
+        "organization": "example-org",
+        "name": "ExampleNS"
+      },
+      "name": "SubjectName001"
+    },
+    "metadata": {
+      "disease_phase": {
+        "value": "Initial Diagnosis"
+      },
+      "library_selection_method": {
+        "value": "PCR"
+      },
+      "library_strategy": {
+        "value": "RNA-Seq"
+      },
+      "library_source_material": {
+        "value": "Bulk Tissue"
+      },
+      "preservation_method": {
+        "value": "Frozen"
+      },
+      "specimen_molecular_analyte_type": {
+        "value": "RNA"
+      },
+      "tissue_type": {
+        "value": "Tumor"
+      },
+      "tumor_classification": {
+        "value": "Primary"
+      },
+      "age_at_diagnosis": {
+        "value": 365.25
+      },
+      "age_at_collection": {
+        "value": 400.0
+      },
+      "diagnosis": {
+        "value": "Leukemia"
+      },
+      "identifiers": [
+        {
+          "value": {
+            "type": "Unlinked",
+            "name": "SampleName001"
+          }
+        }
+      ],
+      "unharmonized": {}
+    },
+    "gateways": []
+  }
+]

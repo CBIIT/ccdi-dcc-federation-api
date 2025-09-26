@@ -1,0 +1,14 @@
+[
+  {
+    "identifier": "example-org",
+    "name": "Example Organization",
+    "metadata": {
+      "institution": [
+        {
+          "value": "SJCRH"
+        }
+      ],
+      "unharmonized": {}
+    }
+  }
+]

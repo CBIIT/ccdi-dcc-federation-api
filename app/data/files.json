@@ -1,0 +1,38 @@
+[
+  {
+    "id": {
+      "namespace": {
+        "organization": "example-org",
+        "name": "ExampleNS"
+      },
+      "name": "File001.txt"
+    },
+    "samples": [
+      {
+        "namespace": {
+          "organization": "example-org",
+          "name": "ExampleNS"
+        },
+        "name": "SampleName001"
+      }
+    ],
+    "metadata": {
+      "type": {
+        "value": "TXT"
+      },
+      "size": {
+        "value": 1234
+      },
+      "checksums": {
+        "value": {
+          "md5": "d41d8cd98f00b204e9800998ecf8427e"
+        }
+      },
+      "description": {
+        "value": "Demo file"
+      },
+      "unharmonized": {}
+    },
+    "gateways": []
+  }
+]

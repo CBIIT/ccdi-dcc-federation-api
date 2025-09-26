@@ -1,0 +1,27 @@
+[
+  {
+    "id": {
+      "organization": "example-org",
+      "name": "ExampleNS"
+    },
+    "description": "A namespace owned by Example Organization.",
+    "contact_email": "support@example.com",
+    "metadata": {
+      "study_short_title": {
+        "value": "EXAMPLE"
+      },
+      "study_name": {
+        "value": "Example Study"
+      },
+      "study_funding_id": [
+        {
+          "value": "R01-XYZ"
+        }
+      ],
+      "study_id": {
+        "value": "AALL0232"
+      },
+      "unharmonized": {}
+    }
+  }
+]

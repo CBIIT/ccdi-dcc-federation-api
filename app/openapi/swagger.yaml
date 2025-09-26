@@ -1,0 +1,4854 @@
+openapi: 3.0.3
+info:
+  title: 'CCDI Data Federation: Participating Nodes API'
+  description: |-
+    This is the concrete OpenAPI specification for the CCDI
+            Data Federation API—though this document contains all of the API calls
+            that CCDI Federation nodes must implement, it does not outline the
+            complete specification.
+
+    * Visit the [documentation homepage](https://cbiit.github.io/ccdi-federation-api)
+      to view the complete set of requirements to maintain and deploy a CCDI
+      Federation node.
+    * Additionally, you can view the Swagger specification in a more traditional
+      theme by visiting
+      [this link](https://editor.swagger.io/?url=https://cbiit.github.io/ccdi-federation-api/swagger.yml).
+    * To access CCDI Data Federation Resource, please visit
+      [this link](https://cbiit.github.io/ccdi-federation-api-aggregation/).
+  contact:
+    name: Childhood Cancer Data Initiative support email
+    email: NCIChildhoodCancerDataInitiative@mail.nih.gov
+  version: v1.2.0
+servers:
+- url: http://localhost:8000/api/v1
+  description: DCC CCDI API server
+paths:
+  /subject:
+    get:
+      tags:
+      - Subject
+      summary: Gets the subjects known by this server.
+      description: |-
+        Gets the subjects known by this server.
+
+        ### Pagination
+
+        This endpoint is paginated. Users may override the default pagination
+        parameters by providing one or more of the pagination-related query
+        parameters below.
+
+        ### Filtering
+
+        All harmonized (top-level) and unharmonized (nested under the
+        `metadata.unharmonized` key) metadata fields are filterable. To achieve
+        this, you can provide the field name as a [`String`]. Filtering follows the
+        following rules:
+
+        * For single-value metadata field, the subject is included in the results if
+        its value _exactly_ matches the query string. Matches are case-sensitive.
+        * For multiple-value metadata fields, the subject is included in the results
+        if any of its values for the field _exactly_ match the query string (a
+        logical OR [`||`]). Matches are case-sensitive.
+        * When the metadata field is `null` (in the case of singular or
+        multiple-valued metadata fields) or empty, the subject is not included.
+        * When multiple fields are provided as filters, a logical AND (`&&`) strings
+        together the predicates. In other words, all filters must match for a
+        subject to be returned. Note that this means that servers do not natively
+        support logical OR (`||`) across multiple fields: that must be done by
+        calling this endpoint with each of your desired queries and performing a
+        set union of those subjects out of band.
+
+        ### Ordering
+
+        This endpoint has default ordering requirements—those details are documented
+        in the `responses::Subjects` schema.
+      operationId: subject_index
+      parameters:
+      - name: sex
+        in: query
+        description: Matches any subject where the `sex` field matches the string provided.
+        required: false
+        schema:
+          type: string
+      - name: race
+        in: query
+        description: |-
+          Matches any subject where any member of the `race` field matches the
+          string provided.
+
+          **Note:** a logical OR (`||`) is performed across the values when
+          determining whether the subject should be included in the results.
+        required: false
+        schema:
+          type: string
+      - name: ethnicity
+        in: query
+        description: |-
+          Matches any subject where the `ethnicity` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: identifiers
+        in: query
+        description: |-
+          Matches any subject where any member of the `identifiers` field matches
+          the string provided.
+
+          **Note:** a logical OR (`||`) is performed across the values when
+          determining whether the subject should be included in the results.
+        required: false
+        schema:
+          type: string
+      - name: vital_status
+        in: query
+        description: |-
+          Matches any subject where the `vital_status` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: age_at_vital_status
+        in: query
+        description: |-
+          Matches any subject where the `age_at_vital_status` field matches the
+          string provided.
+        required: false
+        schema:
+          type: string
+      - name: depositions
+        in: query
+        description: |-
+          Matches any subject where any member of the `depositions` fields match
+          the string provided.
+
+          **Note:** a logical OR (`||`) is performed across the values when
+          determining whether the subject should be included in the results.
+        required: false
+        schema:
+          type: string
+      - name: metadata.unharmonized.<field>
+        in: query
+        description: |-
+          All unharmonized fields should be filterable in the same manner as harmonized fields:
+
+          * Filtering on a singular field should include the `Subject` in the results if the query exactly matches the value of that field for the `Subject` (case-sensitive).
+          * Filtering on field with multiple values should include the `Subject` in the results if the query exactly matches any of the values of the field for that `Subject` (case-sensitive).
+          * Unlike harmonized fields, unharmonized fields must be prefixed with `metadata.unharmonized`.
+
+          **Note:** this query parameter is intended to be symbolic of any unharmonized field. Because of limitations within Swagger UI, it will show up as a query parameter that can be optionally be submitted as part of a request within Swagger UI. Please keep in mind that the literal query parameter `?metadata.unharmonized.<field>=value` is not supported, so attempting to use it within Swagger UI will not work!
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        description: |-
+          The page to retrieve.
+
+          This is a 1-based index of a page within a page set. The value of `page`
+          **must** default to `1` when this parameter is not provided.
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      - name: per_page
+        in: query
+        description: |-
+          The number of results per page.
+
+          Each server can select its own default value for `per_page` when this
+          parameter is not provided. That said, the convention within the
+          community is to use `100` as a default value if any value is equally
+          reasonable.
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      responses:
+        '200':
+          description: Successful operation.
+          headers:
+            link:
+              schema:
+                type: string
+              description: "Links to URLs that may be of interest when paging through paginated responses. This header contains two or more links of interest. The format of the field is as follows: \n\n`Link: <URL>; rel=\"REL\"` \n### Relationships\n\nIn the format above, `URL` represents a valid URL for the link of interest and `REL` is one of four values: \n- `first` (_Required_). A link to the first page in the results (can be the same as `last` if there is only one page).\n- `last` (_Required_). A link to the first page in the results (can be the same as `first` if there is only one page).\n- `next` (_Optional_). A link to the next page (if it exists).\n- `prev` (_Optional_). A link to the previous page (if it exists).\n\n### Requirements\n\n- This header _must_ provide links for at least the `first` and `last` rels.\n - The `prev` and `next` links must exist only (a) when there are multiple pages in the result page set and (b) when the current page is not the first or last page, respectively.\n- This list of links is unordered.\n\n ### Notes\n\n- HTTP 1.1 and HTTP 2.0 dictate that response headers are case insensitive. Though not required, we recommend an all lowercase name of `link` for this response header."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Subjects'
+        '404':
+          description: |-
+            Not found.
+            Servers that cannot provide line-level data should use this response rather than Forbidden (403), as there is no level of authorization that would allow one to access the information included in the API.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: UnshareableData
+                  entity: Subjects
+                  reason: Our agreement with data providers prohibits us from sharing line-level data.
+                  message: 'Unable to share data for subjects: our agreement with data providers prohibits us from sharing line-level data.'
+        '422':
+          description: Invalid query or path parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: InvalidParameters
+                  parameters:
+                  - page
+                  - per_page
+                  reason: Unable to calculate offset.
+                  message: 'Invalid value for parameters ''page'' and ''per_page'': unable to calculate offset.'
+  /subject/{organization}/{namespace}/{name}:
+    get:
+      tags:
+      - Subject
+      summary: Gets the subject matching the provided id (if the subject exists).
+      description: Gets the subject matching the provided id (if the subject exists).
+      operationId: subject_show
+      parameters:
+      - name: organization
+        in: path
+        description: The organization identifier of the namespace to which the subject belongs.
+        required: true
+        schema:
+          type: string
+      - name: namespace
+        in: path
+        description: The name of the namespace to which the subject belongs.
+        required: true
+        schema:
+          type: string
+      - name: name
+        in: path
+        description: The name portion of the subject identifier.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Subject'
+        '404':
+          description: |-
+            Not found.
+            Servers that cannot provide line-level data should use this response rather than Forbidden (403), as there is no level of authorization that would allow one to access the information included in the API.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: NotFound
+                  entity: Subjects
+                  message: Subjects not found.
+  /subject/by/{field}/count:
+    get:
+      tags:
+      - Subject
+      summary: Groups the subjects by the specified metadata field and returns counts.
+      description: Groups the subjects by the specified metadata field and returns counts.
+      operationId: subjects_by_count
+      parameters:
+      - name: field
+        in: path
+        description: The field to group by and count with.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.by.count.subject.Results'
+        '422':
+          description: Unsupported field.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: UnsupportedField
+                  field: handedness
+                  reason: This field is not present for subjects.
+                  message: 'Field ''handedness'' is not supported: this field is not present for subjects.'
+  /subject/summary:
+    get:
+      tags:
+      - Subject
+      summary: Reports summary information for the subjects known by this server.
+      description: Reports summary information for the subjects known by this server.
+      operationId: subject_summary
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Summary'
+  /sample:
+    get:
+      tags:
+      - Sample
+      summary: Gets the samples known by this server.
+      description: |-
+        Gets the samples known by this server.
+
+        ### Pagination
+
+        This endpoint is paginated. Users may override the default pagination
+        parameters by providing one or more of the pagination-related query
+        parameters below.
+
+        ### Filtering
+
+        All harmonized (top-level) and unharmonized (nested under the
+        `metadata.unharmonized` key) metadata fields are filterable. To achieve
+        this, you can provide the field name as a [`String`]. Filtering follows the
+        following rules:
+
+        * For single-value metadata field, the sample is included in the results if
+        its value _exactly_ matches the query string. Matches are case-sensitive.
+        * For multiple-value metadata fields, the sample is included in the results
+        if any of its values for the field _exactly_ match the query string (a
+        logical OR [`||`]). Matches are case-sensitive.
+        * When the metadata field is `null` (in the case of singular or
+        multiple-valued metadata fields) or empty, the sample is not included.
+        * When multiple fields are provided as filters, a logical AND (`&&`) strings
+        together the predicates. In other words, all filters must match for a
+        sample to be returned. Note that this means that servers do not natively
+        support logical OR (`||`) across multiple fields: that must be done by
+        calling this endpoint with each of your desired queries and performing a
+        set union of those samples out of band.
+
+        ### Ordering
+
+        This endpoint has default ordering requirements—those details are documented
+        in the `responses::Samples` schema.
+      operationId: sample_index
+      parameters:
+      - name: disease_phase
+        in: query
+        description: |-
+          Matches any sample where the `disease_phase` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: anatomical_sites
+        in: query
+        description: |-
+          Matches any sample where the `anatomical_sites` field matches the string
+          provided.
+
+          **Note:** a logical OR (`||`) is performed across the values when
+          determining whether the subject should be included in the results.
+        required: false
+        schema:
+          type: string
+      - name: library_selection_method
+        in: query
+        description: |-
+          Matches any sample where the `library_selection_method` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: library_strategy
+        in: query
+        description: |-
+          Matches any sample where the `library_strategy` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: library_source_material
+        in: query
+        description: |-
+          Matches any sample where the `library_source_material` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: preservation_method
+        in: query
+        description: |-
+          Matches any sample where the `preservation_method` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: tumor_grade
+        in: query
+        description: |-
+          Matches any sample where the `tumor_grade` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: specimen_molecular_analyte_type
+        in: query
+        description: |-
+          Matches any sample where the `specimen_molecular_analyte_type` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: tissue_type
+        in: query
+        description: |-
+          Matches any sample where the `tissue_type` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: tumor_classification
+        in: query
+        description: |-
+          Matches any sample where the `tumor_classification` field matches the
+          string provided.
+        required: false
+        schema:
+          type: string
+      - name: age_at_diagnosis
+        in: query
+        description: |-
+          Matches any sample where the `age_at_diagnosis` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: age_at_collection
+        in: query
+        description: |-
+          Matches any sample where the `age_at_collection` field matches the
+          string provided.
+        required: false
+        schema:
+          type: string
+      - name: tumor_tissue_morphology
+        in: query
+        description: |-
+          Matches any sample where the `tumor_tissue_morphology` field matches the
+          string provided.
+        required: false
+        schema:
+          type: string
+      - name: depositions
+        in: query
+        description: |-
+          Matches any sample where any member of the `depositions` fields match
+          the string provided.
+
+          **Note:** a logical OR (`||`) is performed across the values when
+          determining whether the sample should be included in the results.
+        required: false
+        schema:
+          type: string
+      - name: diagnosis
+        in: query
+        description: |-
+          Matches any sample where the `diagnosis` field matches the
+          string provided.
+        required: false
+        schema:
+          type: string
+      - name: metadata.unharmonized.<field>
+        in: query
+        description: |-
+          All unharmonized fields should be filterable in the same manner as harmonized fields:
+
+          * Filtering on a singular field should include the `Sample` in the results if the query exactly matches the value of that field for the `Sample` (case-sensitive).
+          * Filtering on field with multiple values should include the `Sample` in the results if the query exactly matches any of the values of the field for that `Sample` (case-sensitive).
+          * Unlike harmonized fields, unharmonized fields must be prefixed with `metadata.unharmonized`.
+
+          **Note:** this query parameter is intended to be symbolic of any unharmonized field. Because of limitations within Swagger UI, it will show up as a query parameter that can be optionally be submitted as part of a request within Swagger UI. Please keep in mind that the literal query parameter `?metadata.unharmonized.<field>=value` is not supported, so attempting to use it within Swagger UI will not work!
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        description: |-
+          The page to retrieve.
+
+          This is a 1-based index of a page within a page set. The value of `page`
+          **must** default to `1` when this parameter is not provided.
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      - name: per_page
+        in: query
+        description: |-
+          The number of results per page.
+
+          Each server can select its own default value for `per_page` when this
+          parameter is not provided. That said, the convention within the
+          community is to use `100` as a default value if any value is equally
+          reasonable.
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      responses:
+        '200':
+          description: Successful operation.
+          headers:
+            link:
+              schema:
+                type: string
+              description: "Links to URLs that may be of interest when paging through paginated responses. This header contains two or more links of interest. The format of the field is as follows: \n\n`Link: <URL>; rel=\"REL\"` \n### Relationships\n\nIn the format above, `URL` represents a valid URL for the link of interest and `REL` is one of four values: \n- `first` (_Required_). A link to the first page in the results (can be the same as `last` if there is only one page).\n- `last` (_Required_). A link to the first page in the results (can be the same as `first` if there is only one page).\n- `next` (_Optional_). A link to the next page (if it exists).\n- `prev` (_Optional_). A link to the previous page (if it exists).\n\n### Requirements\n\n- This header _must_ provide links for at least the `first` and `last` rels.\n - The `prev` and `next` links must exist only (a) when there are multiple pages in the result page set and (b) when the current page is not the first or last page, respectively.\n- This list of links is unordered.\n\n ### Notes\n\n- HTTP 1.1 and HTTP 2.0 dictate that response headers are case insensitive. Though not required, we recommend an all lowercase name of `link` for this response header."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Samples'
+        '404':
+          description: |-
+            Not found.
+            Servers that cannot provide line-level data should use this response rather than Forbidden (403), as there is no level of authorization that would allow one to access the information included in the API.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: UnshareableData
+                  entity: Samples
+                  reason: Our agreement with data providers prohibits us from sharing line-level data.
+                  message: 'Unable to share data for samples: our agreement with data providers prohibits us from sharing line-level data.'
+        '422':
+          description: Invalid query or path parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: InvalidParameters
+                  parameters:
+                  - page
+                  - per_page
+                  reason: Unable to calculate offset.
+                  message: 'Invalid value for parameters ''page'' and ''per_page'': unable to calculate offset.'
+  /sample/{organization}/{namespace}/{name}:
+    get:
+      tags:
+      - Sample
+      summary: Gets the sample matching the provided name (if the sample exists).
+      description: Gets the sample matching the provided name (if the sample exists).
+      operationId: sample_show
+      parameters:
+      - name: organization
+        in: path
+        description: The organization identifier of the namespace to which the sample belongs.
+        required: true
+        schema:
+          type: string
+      - name: namespace
+        in: path
+        description: The name of the namespace to which the sample belongs.
+        required: true
+        schema:
+          type: string
+      - name: name
+        in: path
+        description: The name portion of the sample identifier.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Sample'
+        '404':
+          description: |-
+            Not found.
+            Servers that cannot provide line-level data should use this response rather than Forbidden (403), as there is no level of authorization that would allow one to access the information included in the API.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: NotFound
+                  entity: Sample with namespace 'foo' and name 'bar'
+                  message: Sample with namespace 'foo' and name 'bar' not found.
+  /sample/by/{field}/count:
+    get:
+      tags:
+      - Sample
+      summary: Groups the samples by the specified metadata field and returns counts.
+      description: Groups the samples by the specified metadata field and returns counts.
+      operationId: samples_by_count
+      parameters:
+      - name: field
+        in: path
+        description: The field to group by and count with.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.by.count.sample.Results'
+        '422':
+          description: Unsupported field.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: UnsupportedField
+                  field: handedness
+                  reason: This field is not present for samples.
+                  message: 'Field ''handedness'' is not supported: this field is not present for samples.'
+  /sample/summary:
+    get:
+      tags:
+      - Sample
+      summary: Reports summary information for the samples known by this server.
+      description: Reports summary information for the samples known by this server.
+      operationId: sample_summary
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Summary'
+  /file:
+    get:
+      tags:
+      - File
+      summary: Gets the files known by this server.
+      description: |-
+        Gets the files known by this server.
+
+        ### Pagination
+
+        This endpoint is paginated. Users may override the default pagination
+        parameters by providing one or more of the pagination-related query
+        parameters below.
+
+        ### Filtering
+
+        All harmonized (top-level) and unharmonized (nested under the
+        `metadata.unharmonized` key) metadata fields are filterable. To achieve
+        this, you can provide the field name as a [`String`]. Filtering follows the
+        following rules:
+
+        * For single-value metadata field, the file is included in the results if
+        its value _exactly_ matches the query string. Matches are case-sensitive.
+        * For multiple-value metadata fields, the file is included in the results
+        if any of its values for the field _exactly_ match the query string (a
+        logical OR [`||`]). Matches are case-sensitive.
+        * When the metadata field is `null` (in the case of singular or
+        multiple-valued metadata fields) or empty, the file is not included.
+        * When multiple fields are provided as filters, a logical AND (`&&`) strings
+        together the predicates. In other words, all filters must match for a
+        file to be returned. Note that this means that servers do not natively
+        support logical OR (`||`) across multiple fields: that must be done by
+        calling this endpoint with each of your desired queries and performing a
+        set union of those files out of band.
+
+        ### Ordering
+
+        This endpoint has default ordering requirements—those details are documented
+        in the `responses::Files` schema.
+      operationId: file_index
+      parameters:
+      - name: type
+        in: query
+        description: Matches any file where the `type` field matches the string provided.
+        required: false
+        schema:
+          type: string
+      - name: size
+        in: query
+        description: Matches any file where the `size` field matches the string provided.
+        required: false
+        schema:
+          type: string
+      - name: checksums
+        in: query
+        description: |-
+          Matches any file where the `checksums` field matches the string
+          provided.
+
+          **Note:** a logical OR (`||`) is performed across the values when
+          determining whether the file should be included in the results.
+        required: false
+        schema:
+          type: string
+      - name: description
+        in: query
+        description: |-
+          Matches any file where the `description` field matches the string
+          provided.
+
+          **Note:** a file is returned if the value provided is a substring of the
+          description.
+        required: false
+        schema:
+          type: string
+      - name: depositions
+        in: query
+        description: |-
+          Matches any file where any member of the `depositions` fields match
+          the string provided.
+
+          **Note:** a logical OR (`||`) is performed across the values when
+          determining whether the sample should be included in the results.
+        required: false
+        schema:
+          type: string
+      - name: metadata.unharmonized.<field>
+        in: query
+        description: |-
+          All unharmonized fields should be filterable in the same manner as harmonized fields:
+
+          * Filtering on a singular field should include the `File` in the results if the query exactly matches the value of that field for the `File` (case-sensitive).
+          * Filtering on field with multiple values should include the `File` in the results if the query exactly matches any of the values of the field for that `File` (case-sensitive).
+          * Unlike harmonized fields, unharmonized fields must be prefixed with `metadata.unharmonized`.
+
+          **Note:** this query parameter is intended to be symbolic of any unharmonized field. Because of limitations within Swagger UI, it will show up as a query parameter that can be optionally be submitted as part of a request within Swagger UI. Please keep in mind that the literal query parameter `?metadata.unharmonized.<field>=value` is not supported, so attempting to use it within Swagger UI will not work!
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        description: |-
+          The page to retrieve.
+
+          This is a 1-based index of a page within a page set. The value of `page`
+          **must** default to `1` when this parameter is not provided.
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      - name: per_page
+        in: query
+        description: |-
+          The number of results per page.
+
+          Each server can select its own default value for `per_page` when this
+          parameter is not provided. That said, the convention within the
+          community is to use `100` as a default value if any value is equally
+          reasonable.
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      responses:
+        '200':
+          description: Successful operation.
+          headers:
+            link:
+              schema:
+                type: string
+              description: "Links to URLs that may be of interest when paging through paginated responses. This header contains two or more links of interest. The format of the field is as follows: \n\n`Link: <URL>; rel=\"REL\"` \n### Relationships\n\nIn the format above, `URL` represents a valid URL for the link of interest and `REL` is one of four values: \n- `first` (_Required_). A link to the first page in the results (can be the same as `last` if there is only one page).\n- `last` (_Required_). A link to the first page in the results (can be the same as `first` if there is only one page).\n- `next` (_Optional_). A link to the next page (if it exists).\n- `prev` (_Optional_). A link to the previous page (if it exists).\n\n### Requirements\n\n- This header _must_ provide links for at least the `first` and `last` rels.\n - The `prev` and `next` links must exist only (a) when there are multiple pages in the result page set and (b) when the current page is not the first or last page, respectively.\n- This list of links is unordered.\n\n ### Notes\n\n- HTTP 1.1 and HTTP 2.0 dictate that response headers are case insensitive. Though not required, we recommend an all lowercase name of `link` for this response header."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Files'
+        '404':
+          description: |-
+            Not found.
+            Servers that cannot provide line-level data should use this response rather than Forbidden (403), as there is no level of authorization that would allow one to access the information included in the API.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: UnshareableData
+                  entity: Files
+                  reason: Our agreement with data providers prohibits us from sharing file-level data.
+                  message: 'Unable to share data for files: our agreement with data providers prohibits us from sharing file-level data.'
+        '422':
+          description: Invalid query or path parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: InvalidParameters
+                  parameters:
+                  - page
+                  - per_page
+                  reason: Unable to calculate offset.
+                  message: 'Invalid value for parameters ''page'' and ''per_page'': unable to calculate offset.'
+  /file/{organization}/{namespace}/{name}:
+    get:
+      tags:
+      - File
+      summary: Gets the file matching the provided name (if the file exists).
+      description: Gets the file matching the provided name (if the file exists).
+      operationId: file_show
+      parameters:
+      - name: organization
+        in: path
+        description: The organization identifier of the namespace to which the file belongs.
+        required: true
+        schema:
+          type: string
+      - name: namespace
+        in: path
+        description: The name of the namespace to which the file belongs.
+        required: true
+        schema:
+          type: string
+      - name: name
+        in: path
+        description: The name portion of the file identifier.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.File'
+        '404':
+          description: |-
+            Not found.
+            Servers that cannot provide line-level data should use this response rather than Forbidden (403), as there is no level of authorization that would allow one to access the information included in the API.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: NotFound
+                  entity: File with namespace 'foo' and name 'bar'
+                  message: File with namespace 'foo' and name 'bar' not found.
+  /file/by/{field}/count:
+    get:
+      tags:
+      - File
+      summary: Groups the files by the specified metadata field and returns counts.
+      description: Groups the files by the specified metadata field and returns counts.
+      operationId: files_by_count
+      parameters:
+      - name: field
+        in: path
+        description: The field to group by and count with.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.by.count.file.Results'
+        '422':
+          description: Unsupported field.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: UnsupportedField
+                  field: handedness
+                  reason: This field is not present for files.
+                  message: 'Field ''handedness'' is not supported: this field is not present for files.'
+  /file/summary:
+    get:
+      tags:
+      - File
+      summary: Reports summary information for the files known by this server.
+      description: Reports summary information for the files known by this server.
+      operationId: file_summary
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Summary'
+  /metadata/fields/subject:
+    get:
+      tags:
+      - Metadata
+      summary: Gets the metadata fields for subjects that are supported by this server.
+      description: Gets the metadata fields for subjects that are supported by this server.
+      operationId: metadata_fields_subject
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.metadata.FieldDescriptions'
+  /metadata/fields/sample:
+    get:
+      tags:
+      - Metadata
+      summary: Gets the metadata fields for samples that are supported by this server.
+      description: Gets the metadata fields for samples that are supported by this server.
+      operationId: metadata_fields_sample
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.metadata.FieldDescriptions'
+  /metadata/fields/file:
+    get:
+      tags:
+      - Metadata
+      summary: Gets the metadata fields for files that are supported by this server.
+      description: Gets the metadata fields for files that are supported by this server.
+      operationId: metadata_fields_file
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.metadata.FieldDescriptions'
+  /namespace:
+    get:
+      tags:
+      - Namespace
+      summary: Gets the namespaces known by this server.
+      description: Gets the namespaces known by this server.
+      operationId: namespace_index
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Namespaces'
+  /namespace/{organization}/{namespace}:
+    get:
+      tags:
+      - Namespace
+      summary: Gets the namespace matching the provided name (if it exists).
+      description: Gets the namespace matching the provided name (if it exists).
+      operationId: namespace_show
+      parameters:
+      - name: organization
+        in: path
+        description: The organization of the namespace.
+        required: true
+        schema:
+          type: string
+      - name: namespace
+        in: path
+        description: The name of the namespace.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Namespace'
+        '404':
+          description: Not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: NotFound
+                  entity: Namespaces
+                  message: Namespaces not found.
+  /organization:
+    get:
+      tags:
+      - Organization
+      summary: Gets the organizations known by this server.
+      description: Gets the organizations known by this server.
+      operationId: organization_index
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Organizations'
+  /organization/{name}:
+    get:
+      tags:
+      - Organization
+      summary: Gets the organization matching the provided name (if it exists).
+      description: Gets the organization matching the provided name (if it exists).
+      operationId: organization_show
+      parameters:
+      - name: name
+        in: path
+        description: The name of the organization.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Organization'
+        '404':
+          description: Not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: NotFound
+                  entity: Organizations
+                  message: Organizations not found.
+  /info:
+    get:
+      tags:
+      - Info
+      summary: Gets the info for this server.
+      description: Gets the info for this server.
+      operationId: info_index
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Information'
+  /sample-diagnosis:
+    get:
+      tags:
+      - Experimental
+      summary: 'Experimental: Filter the samples known by this server by free-text diagnosis search.'
+      description: |-
+        Experimental: Filter the samples known by this server by free-text diagnosis search.
+
+        ### Diagnosis Filtering
+
+        This endpoint supports the experimental `search` parameter.
+        For this parameter, the sample is included in the results if the value of its
+        its `diagnosis` field _contains_ the query string, or if an unharmonized field
+        treated by the implementer as a diagnosis field contains that query string.
+        Matches are case-insensitive.
+
+        ### Pagination
+
+        This endpoint is paginated. Users may override the default pagination
+        parameters by providing one or more of the pagination-related query
+        parameters below.
+
+        ### Additional Filtering
+
+        All harmonized (top-level) and unharmonized (nested under the
+        `metadata.unharmonized` key) metadata fields are filterable. To achieve
+        this, you can provide the field name as a [`String`]. Filtering follows the
+        following rules:
+
+        * For single-value metadata field, the sample is included in the results if
+        its value _exactly_ matches the query string. Matches are case-sensitive.
+        * For multiple-value metadata fields, the sample is included in the results
+        if any of its values for the field _exactly_ match the query string (a
+        logical OR [`||`]). Matches are case-sensitive.
+        * When the metadata field is `null` (in the case of singular or
+        multiple-valued metadata fields) or empty, the sample is not included.
+        * When multiple fields are provided as filters, a logical AND (`&&`) strings
+        together the predicates. In other words, all filters must match for a
+        sample to be returned. Note that this means that servers do not natively
+        support logical OR (`||`) across multiple fields: that must be done by
+        calling this endpoint with each of your desired queries and performing a
+        set union of those samples out of band.
+
+        ### Ordering
+
+        This endpoint has default ordering requirements—those details are documented
+        in the `responses::Samples` schema.
+      operationId: sample_diagnosis_index
+      parameters:
+      - name: search
+        in: query
+        description: |-
+          Matches any sample where the `diagnosis` field contains the
+          string provided, ignoring case.
+        required: false
+        schema:
+          type: string
+      - name: disease_phase
+        in: query
+        description: |-
+          Matches any sample where the `disease_phase` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: anatomical_sites
+        in: query
+        description: |-
+          Matches any sample where the `anatomical_sites` field matches the string
+          provided.
+
+          **Note:** a logical OR (`||`) is performed across the values when
+          determining whether the subject should be included in the results.
+        required: false
+        schema:
+          type: string
+      - name: library_selection_method
+        in: query
+        description: |-
+          Matches any sample where the `library_selection_method` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: library_strategy
+        in: query
+        description: |-
+          Matches any sample where the `library_strategy` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: library_source_material
+        in: query
+        description: |-
+          Matches any sample where the `library_source_material` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: preservation_method
+        in: query
+        description: |-
+          Matches any sample where the `preservation_method` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: specimen_molecular_analyte_type
+        in: query
+        description: |-
+          Matches any sample where the `specimen_molecular_analyte_type` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: tissue_type
+        in: query
+        description: |-
+          Matches any sample where the `tissue_type` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: tumor_classification
+        in: query
+        description: |-
+          Matches any sample where the `tumor_classification` field matches the
+          string provided.
+        required: false
+        schema:
+          type: string
+      - name: age_at_diagnosis
+        in: query
+        description: |-
+          Matches any sample where the `age_at_diagnosis` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: age_at_collection
+        in: query
+        description: |-
+          Matches any sample where the `age_at_collection` field matches the
+          string provided.
+        required: false
+        schema:
+          type: string
+      - name: tumor_tissue_morphology
+        in: query
+        description: |-
+          Matches any sample where the `tumor_tissue_morphology` field matches the
+          string provided.
+        required: false
+        schema:
+          type: string
+      - name: depositions
+        in: query
+        description: |-
+          Matches any sample where any member of the `depositions` fields match
+          the string provided.
+
+          **Note:** a logical OR (`||`) is performed across the values when
+          determining whether the sample should be included in the results.
+        required: false
+        schema:
+          type: string
+      - name: diagnosis
+        in: query
+        description: |-
+          Matches any sample where the `diagnosis` field matches the
+          string provided.
+        required: false
+        schema:
+          type: string
+      - name: metadata.unharmonized.<field>
+        in: query
+        description: |-
+          All unharmonized fields should be filterable in the same manner as harmonized fields:
+
+          * Filtering on a singular field should include the `Sample` in the results if the query exactly matches the value of that field for the `Sample` (case-sensitive).
+          * Filtering on field with multiple values should include the `Sample` in the results if the query exactly matches any of the values of the field for that `Sample` (case-sensitive).
+          * Unlike harmonized fields, unharmonized fields must be prefixed with `metadata.unharmonized`.
+
+          **Note:** this query parameter is intended to be symbolic of any unharmonized field. Because of limitations within Swagger UI, it will show up as a query parameter that can be optionally be submitted as part of a request within Swagger UI. Please keep in mind that the literal query parameter `?metadata.unharmonized.<field>=value` is not supported, so attempting to use it within Swagger UI will not work!
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        description: |-
+          The page to retrieve.
+
+          This is a 1-based index of a page within a page set. The value of `page`
+          **must** default to `1` when this parameter is not provided.
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      - name: per_page
+        in: query
+        description: |-
+          The number of results per page.
+
+          Each server can select its own default value for `per_page` when this
+          parameter is not provided. That said, the convention within the
+          community is to use `100` as a default value if any value is equally
+          reasonable.
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      responses:
+        '200':
+          description: Successful operation.
+          headers:
+            link:
+              schema:
+                type: string
+              description: "Links to URLs that may be of interest when paging through paginated responses. This header contains two or more links of interest. The format of the field is as follows: \n\n`Link: <URL>; rel=\"REL\"` \n### Relationships\n\nIn the format above, `URL` represents a valid URL for the link of interest and `REL` is one of four values: \n- `first` (_Required_). A link to the first page in the results (can be the same as `last` if there is only one page).\n- `last` (_Required_). A link to the first page in the results (can be the same as `first` if there is only one page).\n- `next` (_Optional_). A link to the next page (if it exists).\n- `prev` (_Optional_). A link to the previous page (if it exists).\n\n### Requirements\n\n- This header _must_ provide links for at least the `first` and `last` rels.\n - The `prev` and `next` links must exist only (a) when there are multiple pages in the result page set and (b) when the current page is not the first or last page, respectively.\n- This list of links is unordered.\n\n ### Notes\n\n- HTTP 1.1 and HTTP 2.0 dictate that response headers are case insensitive. Though not required, we recommend an all lowercase name of `link` for this response header."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Samples'
+        '404':
+          description: |-
+            Not found.
+            Servers that cannot provide line-level data should use this response rather than Forbidden (403), as there is no level of authorization that would allow one to access the information included in the API.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: UnshareableData
+                  entity: Samples
+                  reason: Our agreement with data providers prohibits us from sharing line-level data.
+                  message: 'Unable to share data for samples: our agreement with data providers prohibits us from sharing line-level data.'
+        '422':
+          description: Invalid query or path parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: InvalidParameters
+                  parameters:
+                  - page
+                  - per_page
+                  reason: Unable to calculate offset.
+                  message: 'Invalid value for parameters ''page'' and ''per_page'': unable to calculate offset.'
+  /subject-diagnosis:
+    get:
+      tags:
+      - Experimental
+      summary: 'Experimental: Filter the subjects known by this server by free-text diagnosis search.'
+      description: |-
+        Experimental: Filter the subjects known by this server by free-text diagnosis search.
+
+        ### Diagnosis Filtering
+
+        This endpoint supports the experimental `search` parameter.
+        For this parameter, the subject is included in the results if the value of its
+        its `associated_diagnoses` field has at least one diagnosis which _contains_ the query string.
+        Matches are case-insensitive.
+
+        ### Pagination
+
+        This endpoint is paginated. Users may override the default pagination
+        parameters by providing one or more of the pagination-related query
+        parameters below.
+
+        ### Additional Filtering
+
+        All harmonized (top-level) and unharmonized (nested under the
+        `metadata.unharmonized` key) metadata fields are filterable. To achieve
+        this, you can provide the field name as a [`String`]. Filtering follows the
+        following rules:
+
+        * For single-value metadata field, the subject is included in the results if
+        its value _exactly_ matches the query string. Matches are case-sensitive.
+        * For multiple-value metadata fields, the subject is included in the results
+        if any of its values for the field _exactly_ match the query string (a
+        logical OR [`||`]). Matches are case-sensitive.
+        * When the metadata field is `null` (in the case of singular or
+        multiple-valued metadata fields) or empty, the subject is not included.
+        * When multiple fields are provided as filters, a logical AND (`&&`) strings
+        together the predicates. In other words, all filters must match for a
+        subject to be returned. Note that this means that servers do not natively
+        support logical OR (`||`) across multiple fields: that must be done by
+        calling this endpoint with each of your desired queries and performing a
+        set union of those subjects out of band.
+
+        ### Ordering
+
+        This endpoint has default ordering requirements—those details are documented
+        in the `responses::Subjects` schema.
+      operationId: subject_diagnosis_index
+      parameters:
+      - name: search
+        in: query
+        description: |-
+          Matches any subject where any member of the `associated_diagnoses` field contains the
+          string provided, ignoring case.
+
+          **Note:** a logical OR (`||`) is performed across the values when
+          determining whether the subject should be included in the results.
+        required: false
+        schema:
+          type: string
+      - name: sex
+        in: query
+        description: Matches any subject where the `sex` field matches the string provided.
+        required: false
+        schema:
+          type: string
+      - name: race
+        in: query
+        description: |-
+          Matches any subject where any member of the `race` field matches the
+          string provided.
+
+          **Note:** a logical OR (`||`) is performed across the values when
+          determining whether the subject should be included in the results.
+        required: false
+        schema:
+          type: string
+      - name: ethnicity
+        in: query
+        description: |-
+          Matches any subject where the `ethnicity` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: identifiers
+        in: query
+        description: |-
+          Matches any subject where any member of the `identifiers` field matches
+          the string provided.
+
+          **Note:** a logical OR (`||`) is performed across the values when
+          determining whether the subject should be included in the results.
+        required: false
+        schema:
+          type: string
+      - name: vital_status
+        in: query
+        description: |-
+          Matches any subject where the `vital_status` field matches the string
+          provided.
+        required: false
+        schema:
+          type: string
+      - name: age_at_vital_status
+        in: query
+        description: |-
+          Matches any subject where the `age_at_vital_status` field matches the
+          string provided.
+        required: false
+        schema:
+          type: string
+      - name: depositions
+        in: query
+        description: |-
+          Matches any subject where any member of the `depositions` fields match
+          the string provided.
+
+          **Note:** a logical OR (`||`) is performed across the values when
+          determining whether the subject should be included in the results.
+        required: false
+        schema:
+          type: string
+      - name: metadata.unharmonized.<field>
+        in: query
+        description: |-
+          All unharmonized fields should be filterable in the same manner as harmonized fields:
+
+          * Filtering on a singular field should include the `Subject` in the results if the query exactly matches the value of that field for the `Subject` (case-sensitive).
+          * Filtering on field with multiple values should include the `Subject` in the results if the query exactly matches any of the values of the field for that `Subject` (case-sensitive).
+          * Unlike harmonized fields, unharmonized fields must be prefixed with `metadata.unharmonized`.
+
+          **Note:** this query parameter is intended to be symbolic of any unharmonized field. Because of limitations within Swagger UI, it will show up as a query parameter that can be optionally be submitted as part of a request within Swagger UI. Please keep in mind that the literal query parameter `?metadata.unharmonized.<field>=value` is not supported, so attempting to use it within Swagger UI will not work!
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        description: |-
+          The page to retrieve.
+
+          This is a 1-based index of a page within a page set. The value of `page`
+          **must** default to `1` when this parameter is not provided.
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      - name: per_page
+        in: query
+        description: |-
+          The number of results per page.
+
+          Each server can select its own default value for `per_page` when this
+          parameter is not provided. That said, the convention within the
+          community is to use `100` as a default value if any value is equally
+          reasonable.
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      responses:
+        '200':
+          description: Successful operation.
+          headers:
+            link:
+              schema:
+                type: string
+              description: "Links to URLs that may be of interest when paging through paginated responses. This header contains two or more links of interest. The format of the field is as follows: \n\n`Link: <URL>; rel=\"REL\"` \n### Relationships\n\nIn the format above, `URL` represents a valid URL for the link of interest and `REL` is one of four values: \n- `first` (_Required_). A link to the first page in the results (can be the same as `last` if there is only one page).\n- `last` (_Required_). A link to the first page in the results (can be the same as `first` if there is only one page).\n- `next` (_Optional_). A link to the next page (if it exists).\n- `prev` (_Optional_). A link to the previous page (if it exists).\n\n### Requirements\n\n- This header _must_ provide links for at least the `first` and `last` rels.\n - The `prev` and `next` links must exist only (a) when there are multiple pages in the result page set and (b) when the current page is not the first or last page, respectively.\n- This list of links is unordered.\n\n ### Notes\n\n- HTTP 1.1 and HTTP 2.0 dictate that response headers are case insensitive. Though not required, we recommend an all lowercase name of `link` for this response header."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Subjects'
+        '404':
+          description: |-
+            Not found.
+            Servers that cannot provide line-level data should use this response rather than Forbidden (403), as there is no level of authorization that would allow one to access the information included in the API.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: UnshareableData
+                  entity: Subjects
+                  reason: Our agreement with data providers prohibits us from sharing line-level data.
+                  message: 'Unable to share data for subjects: our agreement with data providers prohibits us from sharing line-level data.'
+        '422':
+          description: Invalid query or path parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.Errors'
+              example:
+                errors:
+                - kind: InvalidParameters
+                  parameters:
+                  - page
+                  - per_page
+                  reason: Unable to calculate offset.
+                  message: 'Invalid value for parameters ''page'' and ''per_page'': unable to calculate offset.'
+components:
+  schemas:
+    cde.v1.deposition.DbgapPhsAccession:
+      type: string
+      description: |-
+        **`caDSR CDE 11524544 v1.00`**
+
+        This metadata element is defined by the caDSR as "A stable unique
+        alphanumeric identifier assigned to a study and any objects by the database
+        of Genotypes and Phenotypes (dbGaP).".
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=11524544%20and%20ver_nr=1>
+    cde.v1.file.Description:
+      type: string
+      description: |-
+        **`caDSR CDE 11280338 v1.00`**
+
+        This metadata element is defined by the caDSR as "A free text field that can
+        be used to document the content and other details about an electronic file
+        that may not be captured elsewhere.". No permissible values are defined for
+        this CDE.
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=11280338%20and%20ver_nr=1>
+    cde.v1.file.Name:
+      type: string
+      description: |-
+        **`caDSR CDE 11284037 v1.00`**
+
+        This metadata element is defined by the caDSR as "The literal label for an
+        electronic data file.". No permissible values are defined for this CDE.
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=11284037%20and%20ver_nr=1>
+      example: File001.txt
+    cde.v1.file.Size:
+      type: integer
+      description: |-
+        **`caDSR CDE 11479876 v1.00`**
+
+        This metadata element is defined by the caDSR as "The measure (in bytes) of
+        how much space a data file takes up on a storage medium.". No permissible
+        values are defined for this CDE.
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=11479876%20and%20ver_nr=1>
+      minimum: 0
+    cde.v1.file.Type:
+      type: string
+      description: |-
+        **`caDSR CDE 11416926 v1.00`**
+
+        This metadata element is defined by the caDSR as "A defined organization or
+        layout representing and structuring data in a computer file.".
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=11416926%20and%20ver_nr=1>
+      enum:
+      - ADF
+      - AVI
+      - BAI
+      - BAM
+      - BCR Biotab
+      - BED
+      - bedgraph
+      - BEDPE Format
+      - bigBed
+      - bigWig
+      - Binary Format
+      - BIOM
+      - cdf
+      - CEL
+      - CNS
+      - CRAI
+      - CRAM
+      - CSV
+      - DICOM
+      - DICT
+      - DOC
+      - DOCX
+      - DSV
+      - FASTA
+      - FASTQ
+      - GCT/Res Format
+      - GenBank Format
+      - GFF3
+      - GPR
+      - GTF
+      - gVCF
+      - GZIP Format
+      - HDF5
+      - HIC
+      - HTML
+      - HTSeq Count
+      - IDAT
+      - IDF
+      - idpDB
+      - JPEG
+      - JPEG 2000
+      - JSON
+      - MAF
+      - MAGE-TAB
+      - MAT
+      - MATLAB Script
+      - MEX
+      - MPEG-4
+      - mtx
+      - mzIdentML
+      - mzML
+      - mzXML
+      - NIFTI Format
+      - OME-TIFF
+      - PDF
+      - PED
+      - Plain Text Data Format
+      - PNG
+      - Python Script Format
+      - R File Format
+      - R Markdown
+      - rds
+      - RTF
+      - SDRF
+      - SEG
+      - Sequence Record Format
+      - SVG
+      - SVS
+      - TAR
+      - TBI
+      - Thermo RAW
+      - TIFF
+      - TSV
+      - TXT
+      - VCF
+      - XLS
+      - XLSX
+      - XML
+      - YAML
+      - ZIP
+    cde.v1.file.checksum.MD5:
+      type: string
+      description: |-
+        **`caDSR CDE 11556150 v1.00`**
+
+        This metadata element is defined by the caDSR as "A 32-character hexadecimal
+        number that is computed on a file.". No permissible values are defined for
+        this CDE.
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=11556150%20and%20ver_nr=1>
+    cde.v1.namespace.StudyFundingId:
+      type: string
+      description: |-
+        **`caDSR CDE 14528051 v1.00`**
+
+        This metadata element is defined by the caDSR as "A sequence of characters
+        used to uniquely identify, name, or characterize the study funding
+        organization.".
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=14528051%20and%20ver_nr=1>
+    cde.v1.namespace.StudyId:
+      type: string
+      description: |-
+        **`caDSR CDE 12960571 v1.00`**
+
+        This metadata element is defined by the caDSR as "A sequence of characters
+        used to identify, name, or characterize a pediatric study.".
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=12960571%20and%20ver_nr=1>
+      enum:
+      - AALL0232
+      - AALL0331
+      - AALL03B1
+      - AALL0434
+      - AALL08B1
+      - AAML03P1
+      - AAML0531
+      - AAML1031
+      - AEIOPAML2002
+      - AEWS0031
+      - AEWS0331
+      - AEWS07P1
+      - AEWS1031
+      - AEWS1221
+      - AGCT0132
+      - AGCT01P1
+      - AGCT0521
+      - AHOD0031
+      - AHOD03P1
+      - AHOD0431
+      - AHOD0831
+      - AHOD1221
+      - AHOD1331
+      - AIEOPLAM92
+      - AMLBFM-Registry2012
+      - AMLBFM1998
+      - AMLBFM2004
+      - AMLBFM2012
+      - AMLBFMRegistry2017
+      - AOST0121
+      - AOST01P1
+      - AOST0221
+      - AOST0331/EURAMOS1
+      - AOST1321
+      - AOST1421
+      - CCG-782
+      - CCG-7942
+      - DBAML01
+      - EE99
+      - EICESS92
+      - GC1
+      - GC2
+      - GOG0078
+      - GOG0090
+      - GOG0116
+      - INT133
+      - JACLSAML99
+      - JPLSGAML05
+      - MRCAML12
+      - MRCAML15
+      - NOPHOAML2004
+      - NOPHOAML2012
+      - OS2006
+      - P9749
+      - P9754
+      - POG9049
+      - PPLLSGAML98
+      - REGOBONE
+      - Sarcome13/OS2016
+      - SCFEELAM02
+      - SJCRHAML02
+      - TCGM2004
+      - TE04
+      - TE05
+      - TE08
+      - TE09
+      - TE13
+      - TE20
+      - TE22
+      - TGM85
+      - TGM90
+      - TGM95
+      - TIP
+    cde.v1.namespace.StudyName:
+      type: string
+      description: |-
+        **`caDSR CDE 11459810 v1.00`**
+
+        This metadata element is defined by the caDSR as "The acronym or abbreviated
+        form of the title for a research data collection. Example – GLIOMA01".
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=11459810%20and%20ver_nr=1>
+    cde.v1.organization.Institution:
+      type: string
+      description: |-
+        **`caDSR CDE 12662779 v1.00`**
+
+        This metadata element is defined by the caDSR as "A sequence of characters
+        used to identify, name, or characterize the laboratory, institute, or
+        consortium that provided the information.".
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=12662779%20and%20ver_nr=1>
+      enum:
+      - AIEOP
+      - BFM-SG
+      - BOCG
+      - C3P
+      - CBTN
+      - CCLG
+      - CHLA
+      - COG
+      - COSS-GPOH
+      - CRCTU
+      - CWS
+      - DCOG
+      - DePICT
+      - DFCI
+      - EORTC
+      - EpSSG
+      - EuRBG
+      - EURO-EWING
+      - FSG
+      - GALOP
+      - GEIS
+      - GPOH
+      - IDIPGR
+      - ISG
+      - JACLS
+      - JCCG
+      - JINCS
+      - JNBSG
+      - JPLSG
+      - MRC
+      - NOPHO
+      - NRG-Oncology
+      - PNOC
+      - PPLLSG
+      - RBTR
+      - SFCE
+      - SIOP MMT
+      - SIOPE
+      - SIOPEN
+      - SJCRH
+      - SOPOBE
+      - SSG
+      - Treehouse
+      - UCL
+      - UK
+    cde.v1.sample.DiseasePhase:
+      type: string
+      description: |-
+        **`caDSR CDE 12217251 v1.00`**
+
+        This metadata element is defined by the caDSR as "The stage or period of an
+        individual's treatment process during which relevant observations were
+        recorded.".
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=12217251%20and%20ver_nr=1>
+      enum:
+      - Post-Mortem
+      - Not Reported
+      - Unknown
+      - Initial Diagnosis
+      - Progression
+      - Refractory
+      - Relapse
+      - Relapse/Progression
+    cde.v1.sample.LibrarySourceMaterial:
+      type: string
+      description: |-
+        **`caDSR CDE 15235975 v1.00`**
+
+        This metadata element is defined by the caDSR as "TThe cell or cellular component that makes up the sample that has been prepared for testing or research purposes.".
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=15235975%20and%20ver_nr=1>
+      enum:
+      - Bulk Cells
+      - Bulk Nuclei
+      - Bulk Tissue
+      - Single-cells
+      - Single-nuclei
+      - Not Reported
+    cde.v1.sample.LibraryStrategy:
+      type: string
+      description: |-
+        **`caDSR CDE 6273393 v1.00`**
+
+        This metadata element is defined by the caDSR as "The overall strategy for
+        the collection of double stranded DNA fragments flanked by oligonucleotide
+        sequence adapters to enable their analysis by high-throughput sequencing.".
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=6273393%20and%20ver_nr=1>
+      enum:
+      - AMPLICON
+      - ATAC-Seq
+      - Bisulfite-Seq
+      - ChIA-PET
+      - ChIP-Seq
+      - CLONE
+      - CLONEEND
+      - CTS
+      - DNA-Seq
+      - DNase-Hypersensitivity
+      - EST
+      - FAIRE-seq
+      - FINISHING
+      - FL-cDNA
+      - Hi-C
+      - MBD-Seq
+      - MeDIP-Seq
+      - miRNA-Seq
+      - MNase-Seq
+      - MRE-Seq
+      - ncRNA-Seq
+      - Other
+      - POOLCLONE
+      - RAD-Seq
+      - RIP-Seq
+      - RNA-Seq
+      - SELEX
+      - snATAC-Seq
+      - ssRNA-seq
+      - Synthetic-Long-Read
+      - Targeted-Capture
+      - Tethered Chromatin Conformation Capture
+      - Tn-Seq
+      - WCS
+      - WGA
+      - WGS
+      - WXS
+    cde.v1.sample.SpecimenMolecularAnalyteType:
+      type: string
+      description: |-
+        **`caDSR CDE 15063661 v1.00`**
+
+        This metadata element is defined by the caDSR as "The sample or material
+        being subjected to analysis.". This data element is a subset of the
+        designated CDE as noted
+        [here](https://github.com/CBIIT/ccdi-federation-api/discussions/116#discussioncomment-10848175).
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=15063661%20and%20ver_nr=1>
+      enum:
+      - Protein
+      - DNA
+      - RNA
+    cde.v1.sample.TissueType:
+      type: string
+      description: |-
+        **`caDSR CDE 14688604 v1.00`**
+
+        This metadata element is defined by the caDSR as "The category assigned to the
+        cytologic atypia found in cellular molecules, cells, tissues, organs,
+        body fluids, or body excretory products."
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=14688604%20and%20ver_nr=1>
+      enum:
+      - Not Reported
+      - Normal
+      - Peritumoral
+      - Tumor
+      - Unknown
+    cde.v1.sample.TumorClassification:
+      type: string
+      description: |-
+        **`caDSR CDE 12922545 v1.00`**
+
+        This metadata element is defined by the caDSR as "The classification of a
+        tumor based primarily on histopathological characteristics.".
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=12922545%20and%20ver_nr=1>
+      enum:
+      - Metastatic
+      - Not Reported
+      - Primary
+      - Regional
+      - Unknown
+    cde.v1.sample.TumorTissueMorphology:
+      type: object
+      description: |-
+        **`caDSR CDE 11326261 v1.00`**
+
+        This metadata element is defined by the caDSR as "The microscopic anatomy of
+        normal and abnormal cells and tissues of the specimen as captured in the
+        morphology codes of the International Classification of Diseases for
+        Oncology, 3rd Edition (ICD-O-3)."
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=11326261%20and%20ver_nr=1>
+      required:
+      - icd_o_3
+      properties:
+        icd_o_3:
+          type: string
+          description: The ICD-O-3 code.
+    cde.v1.subject.Name:
+      type: string
+      description: |-
+        **`caDSR CDE 6380049 v1.00`**
+
+        This metadata element is defined by the caDSR as "A unique subject
+        identifier within a site and a study.". No permissible values are defined
+        for this CDE.
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=6380049%20and%20ver_nr=1>
+      example: SubjectName001
+    cde.v1.subject.Race:
+      type: string
+      description: |-
+        **`caDSR CDE 2192199 v1.00`**
+
+        This metadata element is defined by the caDSR as "The text for reporting
+        information about race based on the Office of Management and Budget (OMB)
+        categories.". Upon examination of the large number of projects using the
+        term, it appears to be the preferred term for the general concept of race.
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=2192199%20and%20ver_nr=1>
+      enum:
+      - Not allowed to collect
+      - Native Hawaiian or other Pacific Islander
+      - Not Reported
+      - Unknown
+      - American Indian or Alaska Native
+      - Asian
+      - Black or African American
+      - White
+    cde.v1.subject.Sex:
+      type: string
+      description: |-
+        **`caDSR CDE 6343385 v1.00`**
+
+        This metadata element is defined by the caDSR as "Sex of the subject as
+        determined by the investigator." In particular, this field does not dictate
+        the time period: whether it represents sex at birth, sex at sample
+        collection, or any other determined time point. Further, the descriptions
+        for F and M suggest that this term can represent either biological sex,
+        cultural gender roles, or both. Thus, this field cannot be assumed to
+        strictly represent biological sex.
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=6343385%20and%20ver_nr=1>
+      enum:
+      - U
+      - F
+      - M
+      - UNDIFFERENTIATED
+    cde.v1.subject.VitalStatus:
+      type: string
+      description: |-
+        **`caDSR CDE 2847330 v1.00`**
+
+        This metadata element is defined by the caDSR as "The response to a question
+        that describes a participant's survival status."
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=2847330%20and%20ver_nr=1>
+      enum:
+      - Not reported
+      - Alive
+      - Dead
+      - Unknown
+      - Unspecified
+    cde.v2.namespace.StudyShortTitle:
+      type: string
+      description: |-
+        **`caDSR CDE 11459812 v2.00`**
+
+        This metadata element is defined by the caDSR as "The acronym or
+        abbreviated form of the title for a research data collection".
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=11459812%20and%20ver_nr=2>
+    cde.v2.sample.LibrarySelectionMethod:
+      type: string
+      description: |-
+        **`caDSR CDE 6347743 2.00`**
+
+        This metadata element is defined by the caDSR as "The type of systematic
+        actions performed to select or enrich DNA fragments used in analysis by
+        high-throughput sequencing.". This data element is a subset of the
+        designated CDE as noted
+        [here](https://github.com/CBIIT/ccdi-federation-api/discussions/47#discussioncomment-9863376).
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=6347743%20and%20ver_nr=2>
+      enum:
+      - Random PCR
+      - PCR
+      - Random
+      - Hybrid Selection
+      - Unspecified
+      - rRNA Depletion
+      - Not applicable
+      - Poly-A Enriched Genomic Library
+    cde.v2.sample.PreservationMethod:
+      type: string
+      description: |-
+        **`caDSR CDE 8028962 v2.00`**
+
+        This metadata element is defined by the caDSR as "Text term that represents
+        the method used to maintain the sample or biospecimen in a viable state.".
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=8028962%20and%20ver_nr=2>
+      enum:
+      - -80 degrees C
+      - Cryopreserved
+      - EDTA
+      - FFPE
+      - Formalin Fixed - Buffered
+      - Formalin Fixed - Unbuffered
+      - Fresh
+      - Fresh Dissociated
+      - Fresh Dissociated and Single Cell Sorted
+      - Fresh Dissociated and Single Cell Sorted into Plates
+      - Frozen
+      - Liquid Nitrogen
+      - Not Reported
+      - OCT
+      - Snap Frozen
+      - Unknown
+    cde.v2.sample.TumorGrade:
+      type: string
+      description: |-
+        **`caDSR CDE 11325685 v2.00`**
+
+        This metadata element is defined by the caDSR as "A text term to express
+        the degree of abnormality of cancer cells as a measure of differentiation
+        and aggressiveness.".
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=11325685%20and%20ver_nr=2>
+      enum:
+      - G1 Low Grade
+      - G2 Intermediate Grade
+      - G3 High Grade
+      - G4 Anaplastic
+      - GB Borderline
+      - GX Grade Cannot Be Assessed
+      - Not Applicable
+      - Not Reported
+      - Unknown
+    cde.v2.subject.Ethnicity:
+      type: string
+      description: |-
+        **`caDSR CDE 2192217 v2.00`**
+
+        This metadata element is defined by the caDSR as "The text for reporting
+        information about ethnicity based on the Office of Management and Budget
+        (OMB) categories." Upon examination of the large number of projects using
+        the term, it appears to be the preferred term for the general concept of
+        ethnicity.
+
+        Link:
+        <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=2192217%20and%20ver_nr=2>
+      enum:
+      - Not allowed to collect
+      - Hispanic or Latino
+      - Not Hispanic or Latino
+      - Unknown
+      - Not reported
+    field.UnharmonizedField:
+      oneOf:
+      - $ref: '#/components/schemas/field.owned.Field'
+      - $ref: '#/components/schemas/field.unowned.Field'
+      description: A metadata field.
+    field.owned.Field:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          description: The value of the metadata field.
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+        owned:
+          type: boolean
+          description: Whether or not the field is owned by the source server.
+    field.unowned.Field:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          description: The value of the metadata field.
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.file.Checksums:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/models.file.metadata.Checksums'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.file.Description:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.file.Description'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.file.Size:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.file.Size'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.file.Type:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.file.Type'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.namespace.StudyFundingId:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.namespace.StudyFundingId'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.namespace.StudyId:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.namespace.StudyId'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.namespace.StudyName:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.namespace.StudyName'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.namespace.StudyShortTitle:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v2.namespace.StudyShortTitle'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.organization.Institution:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.organization.Institution'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.sample.AgeAtCollection:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/models.sample.metadata.AgeAtCollection'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.sample.AgeAtDiagnosis:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/models.sample.metadata.AgeAtDiagnosis'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.sample.AnatomicalSite:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/models.sample.metadata.AnatomicalSite'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.sample.Diagnosis:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/models.sample.metadata.Diagnosis'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.sample.DiseasePhase:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.sample.DiseasePhase'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.sample.Identifier:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/models.sample.identifier.referenced.Identifier'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.sample.LibrarySelectionMethod:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v2.sample.LibrarySelectionMethod'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.sample.LibrarySourceMaterial:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.sample.LibrarySourceMaterial'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.sample.LibraryStrategy:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.sample.LibraryStrategy'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.sample.PreservationMethod:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v2.sample.PreservationMethod'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.sample.SpecimenMolecularAnalyteType:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.sample.SpecimenMolecularAnalyteType'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.sample.TissueType:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.sample.TissueType'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.sample.TumorClassification:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.sample.TumorClassification'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.sample.TumorGrade:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v2.sample.TumorGrade'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.sample.TumorTissueMorphology:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.sample.TumorTissueMorphology'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.subject.AgeAtVitalStatus:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/models.subject.metadata.AgeAtVitalStatus'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.subject.AssociatedDiagnoses:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/models.subject.metadata.AssociatedDiagnoses'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.subject.Ethnicity:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v2.subject.Ethnicity'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.subject.Identifier:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/models.subject.identifier.referenced.Identifier'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.subject.Race:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.subject.Race'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.subject.Sex:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.subject.Sex'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    field.unowned.subject.VitalStatus:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          $ref: '#/components/schemas/cde.v1.subject.VitalStatus'
+        ancestors:
+          type: array
+          items:
+            type: string
+          description: |-
+            The ancestors from which this field was derived.
+
+            Ancestors should be provided as period (`.`) delimited paths
+            from the `metadata` key in the subject response object.
+        details:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.Details'
+        comment:
+          type: string
+          description: A free-text comment field.
+    fields.Unharmonized:
+      allOf:
+      - type: object
+        description: The inner [`IndexMap`].
+        additionalProperties:
+          $ref: '#/components/schemas/field.UnharmonizedField'
+      - type: object
+      description: |-
+        A map of unharmonized metadata fields.
+
+        Unharmonized keys may be any valid JSON string.
+    models.File:
+      type: object
+      description: |-
+        A file.
+
+        **Note:** the `samples` key **must** include only identifiers for
+        [`Samples`](super::Sample) that both (a) are listed in the
+        [`Sample`](super::Sample) index endpoint (`/sample`) and (b) are able to be
+        shown with the [`Sample`](super::Sample) show endpoint
+        (`/sample/{namespace}/{name}`).
+      required:
+      - id
+      - samples
+      properties:
+        id:
+          $ref: '#/components/schemas/models.file.Identifier'
+        samples:
+          type: array
+          items:
+            $ref: '#/components/schemas/models.sample.Identifier'
+          description: |-
+            One or more samples that are associated with this [`File`] referred to
+            by their identifier(s).
+
+            Each file must be associated with at least one
+            [`Sample`](super::Sample)—files that are not associated with any sample
+            are disallowed. Files may be associated with as many samples as is
+            necessary.
+
+            **Note:** each identifier **must** match a [`Sample`](super::Sample)
+            that both (a) is listed in the [`Sample`](super::Sample) index endpoint
+            (`/sample`) and (b) is able to be shown with the
+            [`Sample`](super::Sample) show endpoint (`/sample/{namespace}/{name}`).
+        gateways:
+          type: array
+          items:
+            $ref: '#/components/schemas/models.gateway.AnonymousOrReference'
+          description: |-
+            One or more [gateways](AnonymousOrReference) through which this file can
+            be accessed.
+
+            Gateways can be either [anonymous](AnonymousOrReference::Anonymous)
+            ([gateways](crate::Gateway) with no name) or a
+            [refererence](AnonymousOrReference::Reference) to a [named
+            gateway](gateway::Named) ([gateways](crate::Gateway) with a name).
+
+            **Anonymous** gateways are intended to be embedded directly within a
+            returned file in the `/file` response object. They have no name and are
+            only referred to by the file within which they are embedded.
+
+            **Named** gateways, on the other hand, are included in the `gateways`
+            key in the `/file` response object and referred to by name within a
+            returned file in the `/file` response object. They are intended to be
+            used when more than one file references the same gateway. This mechanism
+            is available to ensure that the gateway object does not need to be
+            duplicated multiple times in the response in these cases.
+
+            This field can contain multiple gateways to support scenarios where a
+            file is available through more than one mechanism. We expect that only
+            one gateway will be returned in most responses.
+
+            **Note:** a file must have at least one gateway. If the file has no
+            gateway, then it should not be returned as part of this API.
+        metadata:
+          allOf:
+          - $ref: '#/components/schemas/models.file.Metadata'
+          nullable: true
+    models.Gateway:
+      oneOf:
+      - type: object
+        description: |-
+          An open access gateway.
+
+          This gateway notifies of resources that are accessible without any
+          authentication or authorization.
+        required:
+        - link
+        - kind
+        properties:
+          link:
+            $ref: '#/components/schemas/models.gateway.Link'
+          kind:
+            type: string
+            enum:
+            - Open
+      - type: object
+        description: |-
+          A registered access gateway.
+
+          This gateway notifies of resources that are accessible after successful
+          authentication but _without_ any required authorization.
+
+          The term "registered" is used here instead of "authenticated" because
+          (a) identification first requires registration of some information that
+          is used to identify an individual (such as a username or IP address),
+          and (b) the term "registered" is used more commonly in a colloquial
+          context.
+        required:
+        - link
+        - kind
+        properties:
+          link:
+            $ref: '#/components/schemas/models.gateway.Link'
+          kind:
+            type: string
+            enum:
+            - Registered
+      - type: object
+        description: |-
+          A controlled access gateway.
+
+          This gateway notifies of resources that are accessible after successful
+          authentication _and_ and explicit authorization to view the resources.
+
+          The term "controlled" is used here instead of "authorized" because (a)
+          authorization must be explicitly granted by some entity which controls
+          the resource, and (b) the term "controlled" is used more commonly in a
+          colloquial context.
+
+          Note that, if authorization is not explicitly granted by some entity
+          controlling the resource, OR if authorization is given to _all_
+          authenticated individuals, then a [`Gateway::Registered`] should be used
+          instead.
+        required:
+        - link
+        - kind
+        properties:
+          link:
+            $ref: '#/components/schemas/models.gateway.Link'
+          kind:
+            type: string
+            enum:
+            - Controlled
+      - allOf:
+        - $ref: '#/components/schemas/models.gateway.Closed'
+        - type: object
+          required:
+          - kind
+          properties:
+            kind:
+              type: string
+              enum:
+              - Closed
+      description: Gateways, which notify of resources that are external to the API.
+      discriminator:
+        propertyName: kind
+    models.Namespace:
+      type: object
+      description: A namespace.
+      required:
+      - id
+      - description
+      - contact_email
+      properties:
+        id:
+          $ref: '#/components/schemas/models.namespace.Identifier'
+        description:
+          $ref: '#/components/schemas/models.namespace.Description'
+        contact_email:
+          type: string
+          description: |-
+            A support email address for entities contained within the namespace.
+
+            This field is required to be a valid email address (both in format and
+            in terms of the email address being actively monitored).
+          example: support@example.com
+        metadata:
+          allOf:
+          - $ref: '#/components/schemas/models.namespace.Metadata'
+          nullable: true
+    models.Organization:
+      type: object
+      description: |-
+        An organization.
+
+        Organizations own [`Namespaces`](super::Namespace) within a source server.
+      required:
+      - identifier
+      - name
+      properties:
+        identifier:
+          $ref: '#/components/schemas/models.organization.Identifier'
+        name:
+          $ref: '#/components/schemas/models.organization.Name'
+        metadata:
+          allOf:
+          - $ref: '#/components/schemas/models.organization.Metadata'
+          nullable: true
+    models.Sample:
+      type: object
+      description: |-
+        A sample.
+
+        **Note:** the `subject` identifier **must** match a
+        [`Subject`](super::Subject) that both (a) is listed in the
+        [`Subject`](super::Subject) index endpoint and (b) is able to be shown with
+        the [`Subject`](super::Subject) show endpoint.
+      required:
+      - id
+      - subject
+      properties:
+        id:
+          $ref: '#/components/schemas/models.sample.Identifier'
+        subject:
+          $ref: '#/components/schemas/models.subject.Identifier'
+        gateways:
+          type: array
+          items:
+            $ref: '#/components/schemas/models.gateway.AnonymousOrReference'
+          description: |-
+            One or more [gateways](AnonymousOrReference) through which this sample
+            can be accessed.
+
+            Gateways can be either [anonymous](AnonymousOrReference::Anonymous)
+            ([gateways](crate::Gateway) with no name) or a
+            [refererence](AnonymousOrReference::Reference) to a [named
+            gateway](gateway::Named) ([gateways](crate::Gateway) with a name).
+
+            **Anonymous** gateways are intended to be embedded directly within a
+            returned sample in the `/sample` response object. They have no name and
+            are only referred to by the sample within which they are embedded.
+
+            **Named** gateways, on the other hand, are included in the `gateways`
+            key in the `/sample` response object and referred to by name within a
+            returned sample in the `/sample` response object. They are intended to
+            be used when more than one sample references the same gateway. This
+            mechanism is available to ensure that the gateway object does not need
+            to be duplicated multiple times in the response in these cases.
+
+            This field can contain multiple gateways to support scenarios where a
+            sample is available through more than one mechanism. We expect that only
+            one gateway will be returned in most responses (if at all).
+        metadata:
+          allOf:
+          - $ref: '#/components/schemas/models.sample.Metadata'
+          nullable: true
+    models.Subject:
+      type: object
+      description: A subject.
+      required:
+      - id
+      - kind
+      properties:
+        id:
+          $ref: '#/components/schemas/models.subject.Identifier'
+        kind:
+          $ref: '#/components/schemas/models.subject.Kind'
+        gateways:
+          type: array
+          items:
+            $ref: '#/components/schemas/models.gateway.AnonymousOrReference'
+          description: |-
+            One or more [gateways](AnonymousOrReference) through which this subject
+            can be accessed.
+
+            Gateways can be either [anonymous](AnonymousOrReference::Anonymous)
+            ([gateways](crate::Gateway) with no name) or a
+            [refererence](AnonymousOrReference::Reference) to a [named
+            gateway](gateway::Named) ([gateways](crate::Gateway) with a name).
+
+            **Anonymous** gateways are intended to be embedded directly within a
+            returned subject in the `/subject` response object. They have no name
+            and are only referred to by the subject within which they are embedded.
+
+            **Named** gateways, on the other hand, are included in the `gateways`
+            key in the `/subject` response object and referred to by name within a
+            returned subject in the `/subject` response object. They are intended to
+            be used when more than one subject references the same gateway. This
+            mechanism is available to ensure that the gateway object does not need
+            to be duplicated multiple times in the response in these cases.
+
+            This field can contain multiple gateways to support scenarios where a
+            subject is available through more than one mechanism. We expect that
+            only one gateway will be returned in most responses (if at all).
+        metadata:
+          allOf:
+          - $ref: '#/components/schemas/models.subject.Metadata'
+          nullable: true
+    models.Url:
+      type: string
+      description: |-
+        A uniform resource locator (URL) according to the [URL
+        Standard](https://url.spec.whatwg.org/).
+    models.file.Identifier:
+      type: object
+      description: The primary name and namespace for a file within the source server.
+      required:
+      - namespace
+      - name
+      properties:
+        namespace:
+          $ref: '#/components/schemas/models.namespace.Identifier'
+        name:
+          $ref: '#/components/schemas/cde.v1.file.Name'
+    models.file.Metadata:
+      allOf:
+      - $ref: '#/components/schemas/models.metadata.common.Metadata'
+      - type: object
+        required:
+        - type
+        - size
+        - checksums
+        - description
+        properties:
+          type:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.file.Type'
+            nullable: true
+          size:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.file.Size'
+            nullable: true
+          checksums:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.file.Checksums'
+            nullable: true
+          description:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.file.Description'
+            nullable: true
+          unharmonized:
+            $ref: '#/components/schemas/fields.Unharmonized'
+      description: Metadata associated with a file.
+    models.file.metadata.Checksums:
+      type: object
+      description: A list of checksums for a file.
+      properties:
+        md5:
+          allOf:
+          - $ref: '#/components/schemas/cde.v1.file.checksum.MD5'
+          nullable: true
+    models.gateway.AnonymousOrReference:
+      oneOf:
+      - type: object
+        description: An anonymous gateway.
+        required:
+        - gateway
+        - kind
+        properties:
+          gateway:
+            $ref: '#/components/schemas/models.Gateway'
+          kind:
+            type: string
+            enum:
+            - Anonymous
+      - type: object
+        description: A reference to a named gateway.
+        required:
+        - gateway
+        - kind
+        properties:
+          gateway:
+            type: string
+            description: The reference to a [`Named`] gateway.
+          kind:
+            type: string
+            enum:
+            - Reference
+      description: An anonymous [`Gateway`] or a reference to a named [`Gateway`].
+      discriminator:
+        propertyName: kind
+    models.gateway.Closed:
+      allOf:
+      - $ref: '#/components/schemas/models.gateway.closed.Status'
+      - type: object
+        required:
+        - description
+        properties:
+          description:
+            type: string
+            description: |-
+              A Markdown field (formatted according to the [CommonMark] standard) that
+              describes the gateway.
+
+              At a minimum, a description of what the gateway is and why it is closed
+              is recommended.
+
+              **Note:** this field is required for a closed gateway. This was an
+              intentional decision: gateways are intended to point users to external
+              resources. When that is not possible, a gateway's only purpose can be to
+              provide further information about the data source. Put another way, if
+              one is attempting to construct a closed gateway with no description, it
+              should be considered why a gateway is needed at all.
+
+              [CommonMark]: https://commonmark.org
+      description: A closed gateway.
+    models.gateway.Link:
+      oneOf:
+      - type: object
+        description: |-
+          A link that points precisely to the desired resource.
+
+          [`Link::Direct`] is used when the resource pointed to by the URL
+          exactly matches the desired content—no more and no less.
+
+          For example, if a user wants the RNA-Seq BAM files for a particular
+          sample and the source server can provide a link that filters down to
+          only those files using query parameters, [`Link::Direct`] should be
+          used.
+        required:
+        - url
+        - kind
+        properties:
+          url:
+            $ref: '#/components/schemas/models.Url'
+          kind:
+            type: string
+            enum:
+            - Direct
+      - type: object
+        description: |-
+          A link that points _approximately_ to the desired resource.
+
+          [`Link::Approximate`] is used when an direct link to a desired resource
+          cannot be constructed by the server, but a link to _approximately_ the
+          desired resource followed by following some manual instructions will
+          deliver the desired resources.
+
+          For example, if a user wants the RNA-Seq BAM files for a particular
+          sample, but the server can only construct a link to the particular
+          sample and file type and/or sequencing type must be filtered manually in
+          the user interface, then a [`Link::Approximate`] should be constructed
+          with (a) the `url` field pointing to the sample link and (b) the
+          `instructions` field telling the end user how to filter to their desired
+          content within the user interface.
+        required:
+        - url
+        - instructions
+        - kind
+        properties:
+          url:
+            $ref: '#/components/schemas/models.Url'
+          instructions:
+            type: string
+            description: |-
+              The manual instructions to follow after navigating to the URL.
+
+              As much as is practical, instructions should be as specific as
+              possible to the desired data. We expect that generating dynamic
+              instructions based on the user's selection will require a
+              non-trivial amount of development effort rather than returning
+              generic set of instructions. The reason for this is because this
+              field is intended to be surfaced as tailored instructions with a
+              user interface detailing to the user _exactly_ how to retrieve their
+              desired data.
+
+              For example, if a user is requesting whole-genome sequence BAM files
+              for a particular sample but the server can only construct a link to
+              _all_ files for the sample, the instructions should specify how to
+              filter down to only the whole-genome sequence BAM files
+              specifically—not how to operate filters within the interface
+              generally.
+          kind:
+            type: string
+            enum:
+            - Approximate
+      - type: object
+        description: |-
+          A link that points to information about how to retrieve the desired
+          resource.
+
+          [`Link::Informational`] is used when a link to the desired content
+          cannot be constructed by the server, but a link describing how to gain
+          access to the resource is known. This [`Link`] is reserved for
+          situations where the data is not accessible except via an out-of-band
+          process—if the resource can be reached (not necessarily accessed) by
+          following a URL and a subsequent set of instructions, a
+          [`Link::Approximate`] should be used instead.
+
+          For example, if a request form exists where, once approved, some data is
+          sent to the user in a manual fashion, then a [`Link::Informational`]
+          should be used (the distinguishing factor being that the user cannot
+          complete the request process without some out-of-band or manual
+          process).
+
+          **Note:** no further informational field is provided within the API
+          because the expectation is that the information on what steps should be
+          taken next will be available at the specified URL.
+        required:
+        - url
+        - kind
+        properties:
+          url:
+            $ref: '#/components/schemas/models.Url'
+          kind:
+            type: string
+            enum:
+            - Informational
+      - type: object
+        description: |-
+          A link that points to an email address to request access to the
+          resource.
+
+          [`Link::MailTo`] is used when the process of requesting data access is
+          to email.
+        required:
+        - url
+        - instructions
+        - kind
+        properties:
+          url:
+            $ref: '#/components/schemas/models.Url'
+          instructions:
+            type: string
+            description: |-
+              The instructions to follow when constructing the email request. At a
+              minimum, explaining what criteria are used in determining access,
+              what information is requested, and what to expect after the
+              email in terms of communication and timeline is recommended.
+          kind:
+            type: string
+            enum:
+            - MailTo
+      description: |-
+        A link to an external resource.
+
+        A link communicates information about where a resource is located, alongside
+        additional context regarding how the link should be interpreted (via the
+        `kind` field). All [`Link`]s include a `url` field pointing to the external
+        resource. In the case of [`Link::Approximate`] and [`Link::MailTo`], a
+        required `instructions` field is included to instruct the user of what steps
+        to take after the link has been followed (see the definition of
+        [`Link::Approximate`] and [`Link::MailTo`] for more details, respectively).
+
+        **Note:** the context of what resources are desired compared with what
+        resources the link represents is an important consideration when
+        constructing the correct [`Link`]. For example, if the desired resource is a
+        specific file, but the server can only construct a link to a cohort of
+        files, a [`Link::Approximate`] should be used. In contrast, if the desired
+        resource is the entire cohort of files, a [`Link::Direct`] should be used.
+
+        **Note:** the link does not imply the access level or immediate availability
+        of the data—it only points a user to where they can _attempt_ to access the
+        data. Instead, [`Link`]s are always wrapped in a [`Gateway`](super::Gateway)
+        that communicates the access level or requirements. In other words, a
+        [`Link`] can absolutely require authentication or authorization before data
+        becomes accessible (and the corresponding [`Gateway`](super::Gateway) within
+        which the [`Link`] is embedded should reflect this).
+
+        ## Examples
+
+        * If the data is contained within a file where a direct link can be
+        constructed, whether that file is open access or controlled, then a
+        [`Link::Direct`] should be constructed with a link directly to that file.
+        * In the event that study data is deposited as a study within a larger data
+        repository, such as the database of Genotypes and Phenotypes (dbGaP) or
+        the European Genome-phenome Archive (EGA), and the `url` points to the
+        study page:
+        * If the desired resource is a specific file or subset of (but not all)
+        files within the study, a [`Link::Approximate`] should be returned.
+        This is because the link includes more files than what was
+        specifically requested—thus, instructions on how to filter to the
+        files requested must be communicated.
+        * If the desired resource is _every_ file in the study, then a
+        [`Link::Direct`] should be returned pointing to the study page.
+        * If the data is not immediately requestable through a webpage but there
+        exists an informational page on how to request the data using an
+        out-of-band process, then a [`Link::Informational`] should be used.
+        * If the data is available after contacting an email address, then a
+        [`Link::MailTo`] should be used.
+      discriminator:
+        propertyName: kind
+    models.gateway.Named:
+      allOf:
+      - $ref: '#/components/schemas/models.Gateway'
+      - type: object
+        required:
+        - name
+        properties:
+          name:
+            type: string
+            description: The name.
+      description: |-
+        A named gateway.
+
+        A named gateway is simply a [`Gateway`] with a name. Named gateways exist so
+        that multiple files in a response can refer to the same gateway (by name)
+        without duplicating the information for that gateway multiple times.
+
+        **Note:** a _named_ gateway can only be included in a `gateways` response
+        object—they cannot be embedded directly within a [`File`](crate::File) in
+        the response.
+    models.gateway.closed.Status:
+      oneOf:
+      - type: object
+        required:
+        - status
+        properties:
+          status:
+            type: string
+            enum:
+            - IndefinitelyClosed
+      - type: object
+        description: A gateway that is closed while awaiting publication.
+        required:
+        - status
+        properties:
+          available_at:
+            type: string
+            format: date-time
+            description: |-
+              If known, the ISO 8601 formatted, UTC-based date and time when the
+              the resource will become available.
+
+              This field is intended to indicate to the consumer that they should
+              retry their request on or after the listed time to gain an updated
+              gateway definition.
+            nullable: true
+          status:
+            type: string
+            enum:
+            - AwaitingPublication
+      - type: object
+        description: A gateway that is closed while awaiting publication.
+        required:
+        - available_at
+        - status
+        properties:
+          available_at:
+            type: string
+            format: date-time
+            description: |-
+              The ISO 8601 formatted, UTC-based date and time when the the
+              resource will become available.
+
+              This field is intended to indicate to the consumer that they should
+              retry their request on or after the listed time to gain an updated
+              gateway definition.
+
+              **Note:** for the gateway to have a kind of [`Status::Embargoed`],
+              by definition, a date at which the resource becomes available _must_
+              be known. If a date is not known, then the resource does not fit the
+              API's definition of "embargoed".
+          status:
+            type: string
+            enum:
+            - Embargoed
+      description: The status of a closed gateway.
+      discriminator:
+        propertyName: status
+    models.metadata.common.Metadata:
+      type: object
+      description: Metadata that is common to all metadata blocks.
+      required:
+      - depositions
+      properties:
+        depositions:
+          type: array
+          items:
+            $ref: '#/components/schemas/models.metadata.common.deposition.Accession'
+          description: |-
+            Statements of deposition to public repositories for a given entity.
+
+            **NOTE**: when you declare that a dataset has been deposited to a public
+            repository such as dbGaP or EGA, you should also include a gateway and
+            link pointing to where that entity can be found in the public
+            repository.
+          nullable: true
+    models.metadata.common.deposition.Accession:
+      oneOf:
+      - type: object
+        required:
+        - kind
+        - value
+        properties:
+          kind:
+            type: string
+            enum:
+            - dbGaP
+          value:
+            $ref: '#/components/schemas/cde.v1.deposition.DbgapPhsAccession'
+      description: An accession of a public repository where the data has been deposited.
+      discriminator:
+        propertyName: kind
+    models.metadata.field.Description:
+      oneOf:
+      - $ref: '#/components/schemas/models.metadata.field.description.Harmonized'
+      - $ref: '#/components/schemas/models.metadata.field.description.Unharmonized'
+      description: A description for a metadata field.
+    models.metadata.field.Details:
+      type: object
+      description: Details regarding the harmonization process.
+      properties:
+        method:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.details.Method'
+          nullable: true
+        harmonizer:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.details.Harmonizer'
+          nullable: true
+        url:
+          allOf:
+          - $ref: '#/components/schemas/models.Url'
+          nullable: true
+    models.metadata.field.description.Harmonized:
+      type: object
+      description: |-
+        A harmonized metadata field description.
+
+        Harmonized keys _must_ fit the regex pattern `^[a-z_]+$`.
+      required:
+      - harmonized
+      - path
+      - wiki_url
+      properties:
+        harmonized:
+          type: boolean
+          description: |-
+            Whether or not this field is harmonized across the ecosystem.
+
+            This will always be set to `true`.
+          default: true
+        path:
+          type: string
+          description: |-
+            A comma (`.`) delimited path to the field's location on the `metadata`
+            objects returned by the various subject endpoints.
+        wiki_url:
+          $ref: '#/components/schemas/models.Url'
+        standard:
+          allOf:
+          - $ref: '#/components/schemas/models.metadata.field.description.harmonized.Standard'
+          nullable: true
+    models.metadata.field.description.Unharmonized:
+      type: object
+      description: |-
+        An unharmonized metadata field description.
+
+        Unharmonized keys may be any valid JSON string.
+      required:
+      - harmonized
+      - path
+      properties:
+        harmonized:
+          type: boolean
+          description: |-
+            Whether or not this field is harmonized across the ecosystem.
+
+            This will always be set to `false`.
+          default: false
+        name:
+          type: string
+          description: |-
+            A display name for this metadata field as _suggested_ by the server (this
+            is not considered authoritative and can be ignored by the client if it so
+            chooses). This is mainly to avoid naming collisions of common fields across
+            servers.
+          nullable: true
+        description:
+          type: string
+          description: A plain-text description of what the field represents.
+          nullable: true
+        path:
+          type: string
+          description: |-
+            A comma (`.`) delimited path to the field's location on the `metadata`
+            objects returned by the various subject endpoints.
+        standard:
+          type: string
+          description: |-
+            If the field is considered harmonized across the federation ecosystem, the
+            name of the standard to which the field is harmonized.
+
+            If the field is _not_ harmonized across the federation ecosystem, then this
+            should be [`None`].
+          nullable: true
+        url:
+          allOf:
+          - $ref: '#/components/schemas/models.Url'
+          nullable: true
+    models.metadata.field.description.harmonized.Standard:
+      type: object
+      description: A standard to which a field is harmonized.
+      required:
+      - name
+      - url
+      properties:
+        name:
+          type: string
+          description: The name.
+        url:
+          $ref: '#/components/schemas/models.Url'
+    models.metadata.field.details.Harmonizer:
+      type: string
+      description: |-
+        A statement on the expertise of the individual (or individuals) who are
+        assigning the harmonized values.
+
+        This information can help data receivers understand the context within which
+        the data was harmonized (particularly in data fields that may be constantly
+        evolving or changing—for instance, diagnosis).
+
+        **NOTE:** if you find that there are types of harmonizers that are not
+        captured here, please make an issue on the GitHub repository so we can
+        support the value.
+      enum:
+      - DomainExpert
+      - CurationTeamMember
+    models.metadata.field.details.Method:
+      type: string
+      description: |-
+        The method by which data was harmonized.
+
+        **NOTE:** if you find that there are types of harmonization methods that are
+        not captured here, please make an issue on the GitHub repository so we can
+        support the value.
+      enum:
+      - Mapped
+    models.namespace.Description:
+      type: string
+      description: |-
+        A description of a namespace.
+
+        This description cannot exceed 2048 characters.
+      example: A namespace owned by Example Organization.
+    models.namespace.Identifier:
+      type: object
+      description: An identifier for a namespace.
+      required:
+      - organization
+      - name
+      properties:
+        organization:
+          $ref: '#/components/schemas/models.organization.Identifier'
+        name:
+          $ref: '#/components/schemas/models.namespace.identifier.Name'
+    models.namespace.Metadata:
+      allOf:
+      - $ref: '#/components/schemas/models.metadata.common.Metadata'
+      - type: object
+        required:
+        - study_short_title
+        - study_name
+        - study_funding_id
+        - study_id
+        properties:
+          study_short_title:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.namespace.StudyShortTitle'
+            nullable: true
+          study_name:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.namespace.StudyName'
+            nullable: true
+          study_funding_id:
+            type: array
+            items:
+              $ref: '#/components/schemas/field.unowned.namespace.StudyFundingId'
+            description: The study funding id.
+            nullable: true
+          study_id:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.namespace.StudyId'
+            nullable: true
+          unharmonized:
+            $ref: '#/components/schemas/fields.Unharmonized'
+      description: Metadata associated with a namespace.
+    models.namespace.identifier.Name:
+      type: string
+      description: |-
+        The name of a namespace.
+
+        Typically, this is going to represent a particular dataset within the source server.
+        The name **must** conform to the pattern `^[A-Za-z0-9-]+$`. Any name that does not
+        match this pattern should be considered invalid by clients.
+
+        NOTE: the regex for this field does not allow for any spaces because it is
+        anticipated that the field will be displayable as a repository (e.g.,
+        `example-organization/ExampleNamespace`).
+    models.organization.Identifier:
+      type: string
+      description: |-
+        The identifier of an organization.
+
+        The identifier **must** conform to
+        [`kebab-casing`](https://developer.mozilla.org/en-US/docs/Glossary/Kebab_case),
+        matching the pattern `^[a-z0-9-]+$`. Any identifier that does not match this
+        pattern should be considered invalid by clients.
+
+        **Note:** this field is asserted by the source server, but it is not
+        guaranteed to be authoritative across the federation (due to the
+        decentralized nature of organization and namespace allocation).
+
+        **Note**: the regex for this field does not allow for any spaces because it is
+        anticipated that the field will be displayable as a repository (e.g.,
+        `example-organization/ExampleNamespace`).
+    models.organization.Metadata:
+      allOf:
+      - $ref: '#/components/schemas/models.metadata.common.Metadata'
+      - type: object
+        required:
+        - institution
+        properties:
+          institution:
+            type: array
+            items:
+              $ref: '#/components/schemas/field.unowned.organization.Institution'
+            description: |-
+              Institutions associated with an organization.
+
+              **NOTE:** in this design, an organization in not always a single
+              institution—it may also represent a consortium of institutions, for
+              instance. This is necessary, since a namespace can be tied to one and
+              only one organization in the API specification. As such, if the above is
+              not true, there is no way to make a namespace where data is contributed
+              from multiple institutions.
+            nullable: true
+          unharmonized:
+            $ref: '#/components/schemas/fields.Unharmonized'
+      description: Metadata associated with an organization.
+    models.organization.Name:
+      type: string
+      description: |-
+        The proper name of the organization as it should be displayed by clients.
+
+        This name name cannot exceed 256 characters.
+
+        This field is intended to be the proper name of the organization that mints
+        identifiers within a given namespace. That said, we have intentionally not
+        required that this be an organization specifically, as there may be exceptions
+        to this guideline. We recommend that you use an organization name here if you
+        can, but you may put whatever value is appropriate to describe the owner of the
+        namespace.
+
+        It is recommended that you use title case for this field, though that is not
+        required.
+
+        **Note:** this field is asserted by the source server, but it is not guaranteed
+        to be authoritative across the federation (due to the decentralized nature of
+        organization and namespace allocation).
+      example: Example Organization
+    models.sample.Identifier:
+      type: object
+      description: |-
+        An identifier for a [`Sample`](crate::Sample).
+
+        [`Identifiers`](Identifier) serve two main purposes:
+
+        1. They represent the primary identifier for a [`Sample`](crate::Sample).
+        2. They extended when referenced as [linked identifiers](linked::Identifier).
+      required:
+      - namespace
+      - name
+      properties:
+        namespace:
+          $ref: '#/components/schemas/models.namespace.Identifier'
+        name:
+          type: string
+          description: |-
+            **`caDSR CDE 15100774 v1.00`**
+
+            This metadata element is defined by the caDSR as "A unique string of characters
+            used to identify a specimen.".
+
+            Link:
+            <https://cadsr.cancer.gov/onedata/dmdirect/NIH/NCI/CO/CDEDD?filter=CDEDD.ITEM_ID=15100774%20and%20ver_nr=1>
+          example: SampleName001
+    models.sample.Metadata:
+      allOf:
+      - $ref: '#/components/schemas/models.metadata.common.Metadata'
+      - type: object
+        required:
+        - age_at_diagnosis
+        - anatomical_sites
+        - diagnosis
+        - disease_phase
+        - library_selection_method
+        - tissue_type
+        - tumor_classification
+        - tumor_tissue_morphology
+        - age_at_collection
+        - library_strategy
+        - library_source_material
+        - preservation_method
+        - tumor_grade
+        - specimen_molecular_analyte_type
+        - identifiers
+        properties:
+          age_at_diagnosis:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.sample.AgeAtDiagnosis'
+            nullable: true
+          anatomical_sites:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.sample.AnatomicalSite'
+            nullable: true
+          diagnosis:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.sample.Diagnosis'
+            nullable: true
+          disease_phase:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.sample.DiseasePhase'
+            nullable: true
+          library_selection_method:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.sample.LibrarySelectionMethod'
+            nullable: true
+          tissue_type:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.sample.TissueType'
+            nullable: true
+          tumor_classification:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.sample.TumorClassification'
+            nullable: true
+          tumor_tissue_morphology:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.sample.TumorTissueMorphology'
+            nullable: true
+          age_at_collection:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.sample.AgeAtCollection'
+            nullable: true
+          library_strategy:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.sample.LibraryStrategy'
+            nullable: true
+          library_source_material:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.sample.LibrarySourceMaterial'
+            nullable: true
+          preservation_method:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.sample.PreservationMethod'
+            nullable: true
+          tumor_grade:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.sample.TumorGrade'
+            nullable: true
+          specimen_molecular_analyte_type:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.sample.SpecimenMolecularAnalyteType'
+            nullable: true
+          identifiers:
+            type: array
+            items:
+              $ref: '#/components/schemas/field.unowned.sample.Identifier'
+            description: |-
+              The alternate identifiers for the sample.
+
+              Note that this list of identifiers *must* include the main identifier
+              for the [`Sample`].
+            nullable: true
+          unharmonized:
+            $ref: '#/components/schemas/fields.Unharmonized'
+      description: Metadata associated with a sample.
+    models.sample.identifier.linked.Identifier:
+      allOf:
+      - $ref: '#/components/schemas/models.sample.Identifier'
+      - type: object
+        required:
+        - server
+        properties:
+          server:
+            $ref: '#/components/schemas/models.Url'
+      description: |-
+        A linked identifier for a [`Sample`](crate::Sample).
+
+        Linked identifiers are identifiers that are able to be linked back to servers within
+        the federated ecosystem (i.e., the server that owns this identifier within the
+        ecosystem is known).
+    models.sample.identifier.referenced.Identifier:
+      oneOf:
+      - allOf:
+        - $ref: '#/components/schemas/models.sample.identifier.linked.Identifier'
+        - type: object
+          required:
+          - type
+          properties:
+            type:
+              type: string
+              enum:
+              - Linked
+      - allOf:
+        - $ref: '#/components/schemas/models.sample.identifier.unlinked.Identifier'
+        - type: object
+          required:
+          - type
+          properties:
+            type:
+              type: string
+              enum:
+              - Unlinked
+      description: |-
+        A referenced identifier for a [`Sample`](crate::Sample).
+
+        A referenced identifier is a reference to either an identifier whose owner is known
+        and operates an authoritative federation server containing that identifier (i.e., a
+        [linked identifier](linked::Identifier)) _or_ a reference to an identifier that is
+        generally known to be associated with the sample but does not have an associated
+        server that asserts ownership of the identifier (i.e., an [unlinked
+        identifier](unlinked::Identifier)).
+      discriminator:
+        propertyName: type
+    models.sample.identifier.unlinked.Identifier:
+      type: object
+      description: |-
+        An unlinked identifier for a [`Sample`](crate::Sample).
+
+        This represents an arbitrary identitier that cannot be linked to any source server
+        in the broader federated ecosystem. There are no restricted values for this
+        identifier.
+      required:
+      - name
+      properties:
+        name:
+          type: string
+    models.sample.metadata.AgeAtCollection:
+      type: number
+      format: float
+      description: |-
+        The approximate age of collection in days.
+
+        * When the age at collection is collected by the source server in days, the
+        number of days is reported directly.
+        * When the age at collection is collected by the source server in years, the
+        number of years is multiplied by 365.25 to arrive at an approximate number
+        of days.
+    models.sample.metadata.AgeAtDiagnosis:
+      type: number
+      format: float
+      description: |-
+        The approximate age of diagnosis in days.
+
+        * When the age at diagnosis is collected by the source server in days, the
+        number of days is reported directly.
+        * When the age at diagnosis is collected by the source server in years, the
+        number of years is multiplied by 365.25 to arrive at an approximate number
+        of days.
+    models.sample.metadata.AnatomicalSite:
+      type: string
+      description: |-
+        Anatomical site for a sample.
+
+        Anatomical site generally appears in an array of anatomical site values. In
+        these cases, you should interpret the assignment of an anatomical site to a
+        sample to mean AT LEAST ONE of the anatomical sites applies to the sample.
+        Importantly, when the exact anatomical site is not known, but two candidate
+        anatomical sites are possible, both sites should be annotated on the sample.
+
+        The steps that were taken to filter the Uberon ontology to arrive at this
+        list are:
+
+        * Download the Uberon simple ontology (see the file link above).
+        * Build a directed graph of `is_a` relationships in the ontology.
+        * Include all nodes that fall underneath the `anatomical entity` node.
+
+        This is an autogenerated entity that represents the all nodes inheriting
+        from the 'anatomical entity' node within the simplified Uberon ontology at
+        v2024-09-03. This enum was generated by the `ccdi-curate v1.0.0` command
+        line tool on 2024-11-15 at 20:37 (UTC) from [this
+        file](https://github.com/obophenotype/uberon/releases/download/v2024-09-03/uberon-basic.json).
+      enum:
+      - anatomical entity
+      - material anatomical entity
+      - anatomical structure
+      - ganglion
+      - integumental surface
+      - pulmonary acinus
+      - preorbital bone region
+      - posterior sector of right lobe of liver
+      - anterior sector of right lobe of liver
+    models.sample.metadata.Diagnosis:
+      type: string
+      description: |-
+        The diagnosis for a [`Sample`](crate::Sample).
+
+        This value can be any permissible diagnosis in v1.7.2 of the CCDI Submission
+        Template. These values are from the value set **diagnosis_classification**
+        found in the 'Terms and Value Sets' tab from the [CCDI Submission Template
+        v1.7.2].
+
+        To facilitate quick access to these values, we have provided a slimmed down
+        spreadsheet containing the valid diagnoses:
+
+        1. Download the spreadsheet linked below titled
+        'CCDI_Submission_Template_v1.7.2.diagnosis_values.xlsx'.
+        2. The permissible values are found in column A of the 'diagnosis' tab,
+        titled **diagnosis_category_term**
+
+        [CCDI Submission Template v1.7.2]: https://github.com/CBIIT/ccdi-model/blob/682a99d93b66540bb880ce5899ba8096968a96cf/metadata-manifest/CCDI_Submission_Template_v1.7.2.xlsx
+        [CCDI_Submission_Template_v1.7.2.diagnosis_values.xlsx]: https://cbiit.github.io/ccdi-federation-api/assets/CCDI_Submission_Template_v1.7.2.diagnosis_values.xlsx
+    models.subject.Identifier:
+      type: object
+      description: |-
+        An identifier for a [`Subject`](crate::Subject).
+
+        [`Identifiers`](Identifier) serve two main purposes:
+
+        1. They represent the primary identifier for a [`Subject`](crate::Subject).
+        2. They extended when referenced as [linked identifiers](linked::Identifier).
+      required:
+      - namespace
+      - name
+      properties:
+        namespace:
+          $ref: '#/components/schemas/models.namespace.Identifier'
+        name:
+          $ref: '#/components/schemas/cde.v1.subject.Name'
+    models.subject.Kind:
+      type: string
+      description: A kind of [`Subject`](super::Subject).
+      enum:
+      - Participant
+      - Patient Derived Xenograft
+      - Cell Line
+      - Organoid
+    models.subject.Metadata:
+      allOf:
+      - $ref: '#/components/schemas/models.metadata.common.Metadata'
+      - type: object
+        required:
+        - sex
+        - race
+        - ethnicity
+        - identifiers
+        - vital_status
+        - age_at_vital_status
+        - associated_diagnoses
+        properties:
+          sex:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.subject.Sex'
+            nullable: true
+          race:
+            type: array
+            items:
+              $ref: '#/components/schemas/field.unowned.subject.Race'
+            description: The race(s) of the subject.
+            nullable: true
+          ethnicity:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.subject.Ethnicity'
+            nullable: true
+          identifiers:
+            type: array
+            items:
+              $ref: '#/components/schemas/field.unowned.subject.Identifier'
+            description: |-
+              The alternate identifiers for the subject.
+
+              Note that this list of identifiers *must* include the main identifier
+              for the [`Subject`].
+            nullable: true
+          vital_status:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.subject.VitalStatus'
+            nullable: true
+          age_at_vital_status:
+            allOf:
+            - $ref: '#/components/schemas/field.unowned.subject.AgeAtVitalStatus'
+            nullable: true
+          associated_diagnoses:
+            type: array
+            items:
+              $ref: '#/components/schemas/field.unowned.subject.AssociatedDiagnoses'
+            description: The associated diagnoses for the subject.
+            nullable: true
+          unharmonized:
+            $ref: '#/components/schemas/fields.Unharmonized'
+      description: Metadata associated with a subject.
+    models.subject.identifier.linked.Identifier:
+      allOf:
+      - $ref: '#/components/schemas/models.subject.Identifier'
+      - type: object
+        required:
+        - server
+        properties:
+          server:
+            $ref: '#/components/schemas/models.Url'
+      description: |-
+        A linked identifier for a [`Subject`](crate::Subject).
+
+        Linked identifiers are identifiers that are able to be linked back to servers within
+        the federated ecosystem (i.e., the server that owns this identifier within the
+        ecosystem is known).
+    models.subject.identifier.referenced.Identifier:
+      oneOf:
+      - allOf:
+        - $ref: '#/components/schemas/models.subject.identifier.linked.Identifier'
+        - type: object
+          required:
+          - type
+          properties:
+            type:
+              type: string
+              enum:
+              - Linked
+      - allOf:
+        - $ref: '#/components/schemas/models.subject.identifier.unlinked.Identifier'
+        - type: object
+          required:
+          - type
+          properties:
+            type:
+              type: string
+              enum:
+              - Unlinked
+      description: |-
+        A referenced identifier for a [`Subject`](crate::Subject).
+
+        A referenced identifier is a reference to either an identifier whose owner is known
+        and operates an authoritative federation server containing that identifier (i.e., a
+        [linked identifier](linked::Identifier)) _or_ a reference to an identifier that is
+        generally known to be associated with the subject but does not have an associated
+        server that asserts ownership of the identifier (i.e., an [unlinked
+        identifier](unlinked::Identifier)).
+      discriminator:
+        propertyName: type
+    models.subject.identifier.unlinked.Identifier:
+      type: object
+      description: |-
+        An unlinked identifier for a [`Subject`](crate::Subject).
+
+        This represents an arbitrary identitier that cannot be linked to any source server
+        in the broader federated ecosystem. There are no restricted values for this
+        identifier.
+      required:
+      - name
+      properties:
+        name:
+          type: string
+    models.subject.metadata.AgeAtVitalStatus:
+      type: number
+      format: float
+      description: |-
+        The approximate age at vital status in days.
+
+        * When the age at vital status is collected by the source server in days,
+        the number of days is reported directly.
+        * When the age at vital status is collected by the source server in years,
+        the number of years is multiplied by 365.25 to arrive at an approximate
+        number of days.
+    models.subject.metadata.AssociatedDiagnoses:
+      type: string
+      description: |-
+        The associated_diagnoses for a [`Subject`](crate::Subject).
+
+        This value can be any permissible diagnosis in v1.7.2 of the CCDI Submission
+        Template. These values are from the value set **diagnosis_classification**
+        found in the 'Terms and Value Sets' tab from the [CCDI Submission Template
+        v1.7.2].
+
+        To facilitate quick access to these values, we have provided a slimmed down
+        spreadsheet containing the valid diagnoses:
+
+        1. Download the spreadsheet linked below titled
+        'CCDI_Submission_Template_v1.7.2.diagnosis_values.xlsx'.
+        2. The permissible values are found in column A of the 'diagnosis' tab,
+        titled **diagnosis_category_term**
+
+        [CCDI Submission Template v1.7.2]: https://github.com/CBIIT/ccdi-model/blob/682a99d93b66540bb880ce5899ba8096968a96cf/metadata-manifest/CCDI_Submission_Template_v1.7.2.xlsx
+        [CCDI_Submission_Template_v1.7.2.diagnosis_values.xlsx]: https://cbiit.github.io/ccdi-federation-api/assets/CCDI_Submission_Template_v1.7.2.diagnosis_values.xlsx
+    responses.Errors:
+      type: object
+      description: A wrapper around one or more [errors](Kind).
+      required:
+      - errors
+      properties:
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/responses.error.Kind'
+          description: The errors within this response.
+    responses.File:
+      allOf:
+      - $ref: '#/components/schemas/models.File'
+      - type: object
+      description: A response representing a single [`File`](models::File).
+    responses.Files:
+      type: object
+      description: |-
+        A response representing multiple files known about by the server.
+
+        When no sort order is provided, files **must** be ordered by the primary
+        identifier. This means that, when comparing two identifiers:
+
+        1. The namespace organization field should be sorted alphabetically. If all
+        values for the namespace organization are equal, continue on to the next
+        sorting criteria.
+        2. The namespace name field should be sorted alphabetically. If all
+        values for the namespace names are equal, continue on to the next
+        sorting criteria.
+        3. The entity name should be sorted alphabetically.
+
+        Since the `namespace` and `name` identifiers should always uniquely apply to
+        a single entity, this should always resolve to an ordering.
+
+        If there is a provided sort order, use that instead.
+      required:
+      - summary
+      - data
+      properties:
+        summary:
+          $ref: '#/components/schemas/responses.entity.Summary'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/responses.File'
+          description: The files.
+        gateways:
+          type: array
+          items:
+            $ref: '#/components/schemas/models.gateway.Named'
+    responses.Information:
+      type: object
+      description: A response for information regarding the server.
+      required:
+      - server
+      - api
+      - data
+      properties:
+        server:
+          $ref: '#/components/schemas/responses.info.server.Information'
+        api:
+          $ref: '#/components/schemas/responses.info.api.Information'
+        data:
+          $ref: '#/components/schemas/responses.info.data.Information'
+    responses.Namespace:
+      $ref: '#/components/schemas/models.Namespace'
+    responses.Namespaces:
+      type: array
+      items:
+        $ref: '#/components/schemas/models.Namespace'
+      description: A response for describing namespaces.
+    responses.Organization:
+      $ref: '#/components/schemas/models.Organization'
+    responses.Organizations:
+      type: array
+      items:
+        $ref: '#/components/schemas/models.Organization'
+      description: A response for describing organizations.
+    responses.Sample:
+      allOf:
+      - $ref: '#/components/schemas/models.Sample'
+      - type: object
+      description: A response representing a single [`Sample`](models::Sample).
+    responses.Samples:
+      type: object
+      description: |-
+        A response representing multiple samples known about by the server.
+
+        When no sort order is provided, samples **must** be ordered by the primary
+        identifier. This means that, when comparing two identifiers:
+
+        1. The namespace organization field should be sorted alphabetically. If all
+        values for the namespace organization are equal, continue on to the next
+        sorting criteria.
+        2. The namespace name field should be sorted alphabetically. If all values
+        for the namespace names are equal, continue on to the next sorting
+        criteria.
+        3. The entity name should be sorted alphabetically.
+
+        Since the `namespace` and `name` identifiers should always uniquely apply to
+        a single entity, this should always resolve to an ordering.
+
+        If there is a provided sort order, use that instead.
+      required:
+      - summary
+      - data
+      properties:
+        summary:
+          $ref: '#/components/schemas/responses.entity.Summary'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/models.Sample'
+          description: The samples.
+        gateways:
+          type: array
+          items:
+            $ref: '#/components/schemas/models.gateway.Named'
+    responses.Subject:
+      allOf:
+      - $ref: '#/components/schemas/models.Subject'
+      - type: object
+      description: A response representing a single [`Subject`](models::Subject).
+    responses.Subjects:
+      type: object
+      description: |-
+        A response representing multiple subjects known about by the server.
+
+        When no sort order is provided, subjects **must** be ordered by the primary
+        identifier. This means that, when comparing two identifiers:
+
+        1. The namespace organization field should be sorted alphabetically. If all
+        values for the namespace organization are equal, continue on to the next
+        sorting criteria.
+        2. The namespace name field should be sorted alphabetically. If all
+        values for the namespace names are equal, continue on to the next
+        sorting criteria.
+        3. The entity name should be sorted alphabetically.
+
+        Since the `namespace` and `name` identifiers should always uniquely apply to
+        a single entity, this should always resolve to an ordering.
+
+        If there is a provided sort order, use that instead.
+      required:
+      - summary
+      - data
+      properties:
+        summary:
+          $ref: '#/components/schemas/responses.entity.Summary'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/models.Subject'
+          description: The subjects.
+        gateways:
+          type: array
+          items:
+            $ref: '#/components/schemas/models.gateway.Named'
+    responses.Summary:
+      type: object
+      description: A summary response for an entity endpoint.
+      required:
+      - counts
+      properties:
+        counts:
+          $ref: '#/components/schemas/responses.summary.Counts'
+    responses.by.count.ValueCount:
+      type: object
+      description: A value along with the number of counted entities for that value.
+      required:
+      - value
+      - count
+      properties:
+        value:
+          description: The value.
+        count:
+          type: integer
+          description: The number of times the value was counted.
+          minimum: 0
+    responses.by.count.file.Results:
+      type: object
+      description: |-
+        A set of results from grouping [`Files`](ccdi_models::File) by a specified
+        metadata field and then summing the counts for each value (along with computing a
+        total count).
+      required:
+      - total
+      - missing
+      - values
+      properties:
+        total:
+          type: integer
+          description: The total number of counts in this result set.
+          minimum: 0
+        missing:
+          type: integer
+          description: |-
+            The total number of entries that are missing values. In this context,
+            "missing" means either (a) the individual metadata key is missing or (b)
+            the entire metadata object is missing.
+          minimum: 0
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/responses.by.count.ValueCount'
+          description: The counts per value observed for the result set.
+    responses.by.count.sample.Results:
+      type: object
+      description: |-
+        A set of results from grouping [`Samples`](ccdi_models::Sample) by a specified
+        metadata field and then summing the counts for each value (along with computing a
+        total count).
+      required:
+      - total
+      - missing
+      - values
+      properties:
+        total:
+          type: integer
+          description: The total number of counts in this result set.
+          minimum: 0
+        missing:
+          type: integer
+          description: |-
+            The total number of entries that are missing values. In this context,
+            "missing" means either (a) the individual metadata key is missing or (b)
+            the entire metadata object is missing.
+          minimum: 0
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/responses.by.count.ValueCount'
+          description: The counts per value observed for the result set.
+    responses.by.count.subject.Results:
+      type: object
+      description: |-
+        A response for grouping [`Subject`](ccdi_models::Subject)s by a metadata field
+        and then summing the counts.
+      required:
+      - total
+      - missing
+      - values
+      properties:
+        total:
+          type: integer
+          description: The total number of counts in this result set.
+          minimum: 0
+        missing:
+          type: integer
+          description: |-
+            The total number of entries that are missing values. In this context,
+            "missing" means either (a) the individual metadata key is missing or (b)
+            the entire metadata object is missing.
+          minimum: 0
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/responses.by.count.ValueCount'
+          description: The counts per value observed for the result set.
+    responses.entity.Counts:
+      type: object
+      description: Counts that summarize the contents of a paged entity response.
+      required:
+      - current
+      - all
+      properties:
+        current:
+          type: integer
+          description: The number of entities within the currently selected page in the result set.
+          minimum: 0
+        all:
+          type: integer
+          description: The number of entities across all pages in the result set.
+          minimum: 0
+    responses.entity.Summary:
+      type: object
+      description: A summary of a paged entity response.
+      required:
+      - counts
+      properties:
+        counts:
+          $ref: '#/components/schemas/responses.entity.Counts'
+    responses.error.Kind:
+      allOf:
+      - oneOf:
+        - type: object
+          description: |-
+            Attempted to access an invalid route.
+
+            Also includes all routes for which the path exists, but the HTTP method
+            is not supported for that path.
+          required:
+          - method
+          - route
+          - kind
+          properties:
+            method:
+              type: string
+              description: The HTTP method that was used in the request.
+            route:
+              type: string
+              description: The route that was requested.
+            kind:
+              type: string
+              enum:
+              - InvalidRoute
+          example:
+            kind: InvalidRoute
+            method: GET
+            route: /foobar
+        - type: object
+          description: One or more invalid query or path parameters were provided.
+          required:
+          - reason
+          - kind
+          properties:
+            parameters:
+              type: array
+              items:
+                type: string
+              description: |-
+                If known, the parameters that are invalid. If not known or the list
+                of invalid fields is not desirable to share, pass `null` to this
+                field for a more general error message.
+              nullable: true
+            reason:
+              type: string
+              description: A plain-text reason describing why the parameters are invalid.
+            kind:
+              type: string
+              enum:
+              - InvalidParameters
+          example:
+            kind: InvalidParameters
+            parameters:
+            - id
+            reason: The parameter was a non-integer value.
+        - type: object
+          description: An entity was not found.
+          required:
+          - entity
+          - kind
+          properties:
+            entity:
+              type: string
+              description: The entity (or entities) that are not found.
+            kind:
+              type: string
+              enum:
+              - NotFound
+          example:
+            kind: NotFound
+            entity: Samples
+        - type: object
+          description: Line-level data cannot be shared for the specified entity.
+          required:
+          - entity
+          - reason
+          - kind
+          properties:
+            entity:
+              type: string
+              description: The entity (or entities) where data cannot be shared.
+            reason:
+              type: string
+              description: The reason that the line-level data cannot be shared.
+            kind:
+              type: string
+              enum:
+              - UnshareableData
+          example:
+            kind: UnshareableData
+            entity: Sample
+            reason: Our agreement with data providers prohibits us from sharing line-level data.
+        - type: object
+          description: A field name was not supported for the attempted operation.
+          required:
+          - field
+          - reason
+          - kind
+          properties:
+            field:
+              type: string
+              description: The field that is not supported.
+            reason:
+              type: string
+              description: The reason that the field is not supported.
+            kind:
+              type: string
+              enum:
+              - UnsupportedField
+          example:
+            kind: UnsupportedField
+            field: field
+            reason: The field was not found in the metadata object.
+        description: An inner type of a [Kind](super::Kind).
+        discriminator:
+          propertyName: kind
+      - type: object
+        required:
+        - message
+        properties:
+          message:
+            type: string
+            description: |-
+              A plain-text description of the error.
+
+              This field is intended to be shown within a user interface or similar if
+              needed. Please use this field if you intend to pass the error along to a
+              user.
+      description: A response indicating an error from the API.
+    responses.info.api.Information:
+      type: object
+      description: Information that is specific to the API that the server implements.
+      required:
+      - api_version
+      - documentation_url
+      properties:
+        api_version:
+          type: string
+          description: The version of the API that this server supports.
+          example: v1.2.0
+        documentation_url:
+          type: string
+          description: |-
+            A URL pointing to the latest version of the Swagger documentation.
+
+            Note that, at times, the latest version of the Swagger documentation may
+            not be in sync with the version of the API deployed for this server. The
+            intention of this field is not to link to a Swagger specification that
+            strictly matches this particular server, but rather, to point users to
+            where the specification is developed and hosted.
+          default: https://cbiit.github.io/ccdi-federation-api/specification.html
+    responses.info.data.Information:
+      type: object
+      description: Information that is specific to the API that the server implements.
+      required:
+      - version
+      - last_updated
+      - wiki_url
+      properties:
+        version:
+          $ref: '#/components/schemas/responses.info.data.Version'
+        last_updated:
+          type: string
+          format: date-time
+          description: |-
+            The ISO 8601 formatted, UTC-based date and time when the data was last
+            updated.
+
+            This represents the last _update_ time. In contrast to the
+            `data_version` field, this field is updated whenever a data update is
+            performed irrespective of whether there were actually changes in the
+            data.
+        wiki_url:
+          type: string
+          description: |-
+            A URL pointing to the wiki.
+
+            The intention of this field is to make users aware that we maintain a
+            federation-wide wiki that describes the data elements in detail.
+          default: https://github.com/CBIIT/ccdi-federation-api/wiki
+        documentation_url:
+          type: string
+          description: |-
+            If available, a link pointing to where users can learn more about the
+            data contained within this particular server.
+
+            This is intended to be a server-specification documentation link, not
+            any link that is developed by the federation.
+          default: https://docs.example.com
+          nullable: true
+    responses.info.data.Version:
+      allOf:
+      - $ref: '#/components/schemas/responses.info.data.version.About'
+      - type: object
+        required:
+        - version
+        properties:
+          version:
+            type: integer
+            description: |-
+              The value of the version.
+
+              This field represents a free-text field where data is arbitrarily
+              versioned by the source server. Any versioning scheme is permissible.
+            example: 1
+            minimum: 1
+      description: The version of data published within this source server.
+    responses.info.data.version.About:
+      oneOf:
+      - type: object
+        required:
+        - about
+        properties:
+          about:
+            type: string
+            description: |-
+              A free-text description of the data version included with the response
+              from the source server. This field is interpreted as Markdown (as
+              defined by the [CommonMark](https://commonmark.org/) specification).
+      - type: object
+        required:
+        - about_url
+        properties:
+          about_url:
+            type: string
+            description: |-
+              A URL where one can learn more about the data versioning for this source
+              server.
+      description: A description of how data is versioning within the source server.
+    responses.info.server.Information:
+      type: object
+      description: Information that is specific to the server itself.
+      required:
+      - owner
+      - contact_email
+      properties:
+        name:
+          type: string
+          description: |-
+            The name of this server (if it has one).
+
+            This is a free-text field describing the name of this server, if it has
+            one. The intention is to be able to describe the proper name of the
+            application.
+          example: Example Server
+          nullable: true
+        version:
+          type: string
+          description: |-
+            The version of this server (if it has one).
+
+            Though there is explicitly no versioning dictated by the specification,
+            we recommend [Semantic Versioning v2.0](https://semver.org/) in the
+            absence of better options to align with the scheme used by the API. Note
+            that using the same versioning scheme does not mean that the version of
+            your server is recommended to be the same version as the API.
+          example: v1.22
+          nullable: true
+        owner:
+          type: string
+          description: |-
+            A free-text string describing the owner of the namespace.
+
+            This field is intended to be the proper name of the organization that
+            owns and operates the server. That said, we have intentionally not
+            required this restriction, as there may be exceptions to this guideline.
+            We recommend that you use an organization name here if you can, but you
+            may put whatever value is appropriate to describe the owner of the
+            server.
+
+            It is recommended that you use title case for this field, though that is
+            not strictly required.
+          example: Example Organization
+        contact_email:
+          type: string
+          description: |-
+            A support email address for the server.
+
+            This field is required to be a valid email address (both in format and
+            in terms of the email address being actively monitored).
+          example: support@example.com
+        about_url:
+          type: string
+          description: |-
+            If desired, a link to a page intended to be consumed by a web browser
+            that describes more about the owner. This can be a link to your
+            organization's main web page or a link to a webpage describing the
+            project.
+          example: https://example.com
+          nullable: true
+        repository_url:
+          type: string
+          description: |-
+            If your code base is open source and you want to advertise that, a link
+            to the repository where the code is stored.
+          example: https://github.com/CBIIT/ccdi-federation-api
+          nullable: true
+        issues_url:
+          type: string
+          description: If available, a URL where users can report issues.
+          example: https://github.com/CBIIT/ccdi-federation-api/issues
+          nullable: true
+    responses.metadata.FieldDescriptions:
+      type: object
+      description: A response for describing metadata fields for a subject, sample, or file.
+      required:
+      - fields
+      properties:
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/models.metadata.field.Description'
+          description: Field descriptions.
+    responses.summary.Counts:
+      type: object
+      description: Counts included in a summary endpoint.
+      required:
+      - total
+      properties:
+        total:
+          type: integer
+          minimum: 0
+tags:
+- name: Subject
+  description: Subjects within the CCDI federated ecosystem.
+- name: Sample
+  description: Samples within the CCDI federated ecosystem.
+- name: File
+  description: Files within the CCDI federated ecosystem.
+- name: Metadata
+  description: List and describe provided metadata fields.
+- name: Namespace
+  description: List and describe namespaces known by this server.
+- name: Organization
+  description: List and describe organizations known by this server.
+- name: Info
+  description: Information about the API implementation itself.
+- name: Experimental
+  description: Endpoints and features in an experimental phase.
+externalDocs:
+  url: https://www.cancer.gov/research/areas/childhood/childhood-cancer-data-initiative
+  description: Learn more about the Childhood Cancer Data Initiative

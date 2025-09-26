@@ -1,0 +1,46 @@
+[
+  {
+    "id": {
+      "namespace": {
+        "organization": "example-org",
+        "name": "ExampleNS"
+      },
+      "name": "SubjectName001"
+    },
+    "kind": "Participant",
+    "metadata": {
+      "sex": {
+        "value": "F"
+      },
+      "race": [
+        {
+          "value": "White"
+        }
+      ],
+      "ethnicity": {
+        "value": "Not Hispanic or Latino"
+      },
+      "identifiers": [
+        {
+          "value": {
+            "type": "Unlinked",
+            "name": "SubjectName001"
+          }
+        }
+      ],
+      "vital_status": {
+        "value": "Alive"
+      },
+      "age_at_vital_status": {
+        "value": 365.25
+      },
+      "associated_diagnoses": [
+        {
+          "value": "Leukemia"
+        }
+      ],
+      "unharmonized": {}
+    },
+    "gateways": []
+  }
+]
